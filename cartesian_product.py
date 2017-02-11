@@ -35,14 +35,14 @@ def cartesian_product(segments):
     """    
     Takes a list of CPUnit, returns a list of strings.
     """
-    pass
+    return []
 
 def parse_bash_cp(spec):
     """
     `spec` is the input string to `bash_cartestian_product`.
     Parses `spec` into a list of CPUnit (input to cartesian_product)
     """
-    pass
+    return []
 
 def bash_cartesian_product(spec):
     """
@@ -60,7 +60,7 @@ def bash_cartesian_product(spec):
     """
     segments = parse_bash_cp(spec)
     permutations = cartesian_product(segments)
-    return permutations.join(" ")
+    return " ".join(permutations)
 
 if __name__ == '__main__':
     import sys
