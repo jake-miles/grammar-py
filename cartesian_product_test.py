@@ -66,12 +66,18 @@ class TestParseBashCP(unittest.TestCase):
         self.assertEqual(segments, [Static("a"), Multiplier(["b","c"]), Multiplier(["d","e"]), Static("fg"), Multiplier(["h","i","j"])])
                                                                                 
     
-# just tests the integration of parsing/computing 
+# tests the integration of the parse/compute steps tested above, and pretty-printing.
+# also tests the two examples provided with the problem.
 class TestBashCP(unittest.TestCase):
-    def test_bash_cp(self):
+
+    def test_example_1(self):
         cp = bash_cartesian_product("a{b,c}d{e,f,g}hi")
         self.assertEqual(cp, "abdehi abdfhi abdghi acdehi acdfhi acdghi")
 
+    def test_example_2(self):
+        cp = bash_cartesian_product("a{b,c{d,e,f}g,h}ij{k,l}")
+        self.assertEqual(cp, "abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl")
+            
 if __name__ == '__main__':
     unittest.main()
     
