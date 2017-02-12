@@ -27,11 +27,10 @@ class TestCartesianProduct(unittest.TestCase):
         # generated using bash command `echo {a,b,c}{d,e,f}{g,h,i}`
         self.assertEqual(cp, ["adg", "adh", "adi", "aeg", "aeh", "aei", "afg", "afh", "afi", "bdg", "bdh", "bdi", "beg", "beh", "bei", "bfg", "bfh", "bfi", "cdg", "cdh", "cdi", "ceg", "ceh", "cei", "cfg", "cfh", "cfi"])
         
-class SomethingElse:    
     def test_mixed(self):
         cp = cartesian_from_units([Static("abc"), Multiplier(["d","e"]), Static("fgh"), Multiplier(["i","j","k"])])
         # generated with echo abc{d,e}fgh{i,j,k}
-        self.assertEqual(cp, ["abcdfghi" "abcdfghj" "abcdfghk" "abcefghi" "abcefghj" "abcefghk"])
+        self.assertEqual(cp, ["abcdfghi", "abcdfghj", "abcdfghk", "abcefghi", "abcefghj", "abcefghk"])
         
 class TestParseBashCP(unittest.TestCase):
 

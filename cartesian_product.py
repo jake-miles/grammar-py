@@ -51,24 +51,23 @@ def cartesian_product(sets, index = 0):
     # TODO: explain implementation
     
     """
-    print("cartesian_product: " + str(index))
-    
-    # `index` is the index of the current set in `sets`, i.e. the current node
-    # in the tree.
-    #
     if index == len(sets):
         return []
     else:
 
+        # branches at this level of the tree
         variations = sets[index]
         
+        # the cartesian product of all branches one level down
         rest = cartesian_product(sets, index + 1)
 
+        # we're at the leaves - start accumulating back up the tree
         if not rest:
             return variations
         else:
-            # for each child string, create a variation for each path in `fork`
-            return [v + result for result in rest for v in variations]
+            # for each child string, create a variation for each variation at this level
+            # TODO: I'll bet string concat is slow. could append segments and then join.
+            return [v + result for v in variations for result in rest]
 
 def parse_bash_cp(spec):
     """
