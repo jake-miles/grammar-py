@@ -1,4 +1,4 @@
-import itertools
+from itertools import takewhile, islice
 
 class Segment:
     """
@@ -14,8 +14,10 @@ class Segment:
         raise AbstractMethodCall("Segment.toSets")
 
 class AbstractMethodCall(Exception):
-    def __init__(self, method_name):
-        super("Call to abstract method " + method_name) 
+    pass
+
+class ParseException(Exception):
+    pass
 
 class Static(Segment):
     """
@@ -57,7 +59,7 @@ def cartesian_product(sets, index = 0):
 
         # branches at this level of the tree
         variations = sets[index]
-        
+    
         # the cartesian product of all branches one level down
         rest = cartesian_product(sets, index + 1)
 
@@ -71,10 +73,39 @@ def cartesian_product(sets, index = 0):
 
 def parse_bash_cp(spec):
     """
-    `spec` is the input string to `bash_cartestian_product`.
-    Parses `spec` into a list of Segments.
-    """
-    return []
+     `spec` is the input string to `bash_cartestian_product`.
+     Parses `spec` into a list of Segments.
+     """
+    segments = []
+    remaining = list(spec)
+    while remaining:
+        (segment, length) = parse_segment(remaining)
+        segments.append(segment)
+        remaining = list(islice(remaining, length, None))
+    return segments
+
+def parse_segment(chars):
+    if chars[0] == "}":
+        raise ParseException("Closing brace found before open brace: " + str(chars))
+    elif chars[0] == "{":
+        return parse_multiplier(chars)
+    else:
+        return parse_static(chars)
+
+def parse_static(chars):
+    static = list(takewhile(lambda c: c not in ["{", "}"], chars))
+    return (Static(''.join(static)), len(static))
+        
+def parse_multiplier(chars):
+    rest = islice(chars, 1, None)
+    spec = list(takewhile(lambda c: c != "}", rest))
+    # TODO: turns out this is wrong - multipliers can nest!  they're full sub-expressions.  need to revamp the design a bit.
+    if "{" in spec:
+        raise ParseException("Second opening brace found before closing brace: " + str(chars))
+    else:
+        variations = "".join(spec).split(",")
+        # 2 for the opening and closing brace
+        return (Multiplier(variations), 2 + len(spec))
 
 def bash_cartesian_product(spec):
     """
@@ -91,7 +122,7 @@ def bash_cartesian_product(spec):
     abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl
     """
     units = parse_bash_cp(spec)
-    multipliers =  [u.options() for u in units]
+    multipliers =  [u.toSets() for u in units]
     permutations = cartesian_product(multipliers)
     return " ".join(permutations)
 
