@@ -35,26 +35,36 @@ class TestCartesianProduct(unittest.TestCase):
 class TestParseBashCP(unittest.TestCase):
 
     def test_empty_string(self):
-        pass
+        segments = parse_bash_cp("")
+        self.assertEqual(segments, [])
 
     def test_static(self):
-        pass
+        segments = parse_bash_cp("abc")
+        self.assertEqual(segments, [Static("abc")])
 
     def test_multiplier(self):
-        pass
+        segments = parse_bash_cp("{a,b,c}")
+        self.assertEqual(segments, [Multiplier(["a","b","c"])])
 
+    def test_multiplier_one_element(self):
+        segments = parse_bash_cp("{a}")
+        self.assertEqual(segments, [Multiplier(["a"])])
+        
     def test_static_multiplier_static(self):
-        pass
-
+        segments = parse_bash_cp("abc{d,e,f}ghi{k,l}")
+        self.assertEqual(segments, [Static("abc"), Multiplier(["d","e","f"]), Static("ghi"), Multiplier(["k", "l"])])
+        
     def test_multiplier_static_multiplier(self):
-        pass
+        segments = parse_bash_cp("{a,b,c}def{g,h,i}kl")
+        self.assertEqual(segments, [Multiplier(["a","b","c"]), Static(["def"]), Multiplier(["g","h","i"]), Static("kl")])
 
     def test_multiplier_multiplier(self):
-        pass
-
+        segments = parse_bash_cp("{a,b,c}{d,e,f}")
+        self.assertEqual(segments, [Multiplier(["a","b","c"]), Multiplier(["d","e","f"])])
     def test_mix(self):
-        pass
-
+        segments = parse_bash_cp("a{b,c}{d,e}fg{h,i,j}")
+        self.assertEqual(segments, [Static("a"), Multiplier(["b","c"]), Multiplier(["d","e"]), Static("fg"), Multiplier(["h","i","j"])])
+                                                                                
     
 # just tests the integration of parsing/computing 
 class TestBashCP:#(unittest.TestCase):
