@@ -1,4 +1,4 @@
-# Jake Miles Energy Hub Assignment
+# Bash cartesian product in python
 
 Python implementation of a bash cartesian product.
 
