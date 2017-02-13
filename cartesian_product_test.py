@@ -46,40 +46,48 @@ class TestCartesianProduct(unittest.TestCase):
                                    Or([Atom("i"),Atom("j"),Atom("k")])])
         self.assertEqual(cp, ["abcdfghi", "abcdfghj", "abcdfghk", "abcefghi", "abcefghj", "abcefghk"])
         
-class TestParseBashCP:#(unittest.TestCase):
+class TestParseBashCP(unittest.TestCase):
 
     def test_empty_string(self):
         segments = parse_bash_cp("")
-        self.assertEqual(segments, [])
+        self.assertEqual(segments, And([]))
 
     def test_static(self):
         segments = parse_bash_cp("abc")
-        self.assertEqual(segments, [Atom("abc")])
-
-    def test_multiplier(self):
-        segments = parse_bash_cp("{a,b,c}")
-        self.assertEqual(segments, [Or([Atom("a"),Atom("b"),Atom("c")])])
+        self.assertEqual(segments, And([Atom("abc")]))
 
     def test_multiplier_one_element(self):
         segments = parse_bash_cp("{a}")
-        self.assertEqual(segments, [Or([Atom("a")])])
+        self.assertEqual(segments, And([Or([Atom("a")])]))
+        
+    def test_multiplier(self):
+        segments = parse_bash_cp("{a,b,c}")
+        self.assertEqual(segments, And([Or([Atom("a"),Atom("b"),Atom("c")])]))
         
     def test_static_multiplier_static(self):
         segments = parse_bash_cp("abc{d,e,f}ghi{k,l}")
-        self.assertEqual(segments, [Atom("abc"), Or([Atom("d"),Atom("e"),Atom("f")]), Atom("ghi"), Or([Atom("k"), Atom("l")])])
+        self.assertEqual(segments, And([Atom("abc"), Or([Atom("d"),Atom("e"),Atom("f")]), Atom("ghi"), Or([Atom("k"), Atom("l")])]))
         
     def test_multiplier_static_multiplier_static(self):
         segments = parse_bash_cp("{a,b,c}def{g,h,i}kl")
-        self.assertEqual(segments, [Or([Atom("a"),Atom("b"),Atom("c")]), Atom("def"), Or([Atom("g"),Atom("h"),Atom("i")]), Atom("kl")])
+        self.assertEqual(segments, And([Or([Atom("a"),Atom("b"),Atom("c")]), Atom("def"), Or([Atom("g"),Atom("h"),Atom("i")]), Atom("kl")]))
 
     def test_multiplier_multiplier(self):
         segments = parse_bash_cp("{a,b,c}{d,e,f}")
-        self.assertEqual(segments, [Or([Atom("a"),Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e"),Atom("f")])])
+        self.assertEqual(segments, And([Or([Atom("a"),Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e"),Atom("f")])]))
 
+    def test_nested_multiplier(self):
+        segments = parse_bash_cp("z{a,{b,c},d}y")
+        self.asertEqual(cp, And([Atom("z"),
+                                 Or([Atom("a"),
+                                     Or([Atom("b"), Atom("c")]),
+                                     Atom("d")]),
+                                 Atom("y")]))
+                        
     def test_mix(self):
         segments = parse_bash_cp("a{b,c}{d,e}fg{h,i,j}")
-        self.assertEqual(segments, [Atom("a"), Or([Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e")]), Atom("fg"), Or([Atom("h"),Atom("i"),Atom("j")])])
-    
+        self.assertEqual(segments, And([Atom("a"), Or([Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e")]), Atom("fg"), Or([Atom("h"),Atom("i"),Atom("j")])]))
+        
 # tests the integration of the parse/compute steps tested above, and pretty-printing.
 # also tests the two examples provided with the problem.
 class TestBashCP(unittest.TestCase):

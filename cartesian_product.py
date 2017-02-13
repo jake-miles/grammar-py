@@ -26,7 +26,7 @@ class Atom(Expression):
         self.value = value
 
     def __repr__(self):
-        return "Atom({0})".format(",".join(self.options))
+        return "Atom({0})".format(",".join(self.value))
         
     def factors(self):
         return [self.value]
@@ -37,7 +37,7 @@ class Or(Expression):
         self.variations = variations
 
     def __repr__(self):
-        return "Or({0})".format(",".join(self.variations))
+        return "Or({0})".format(",".join([str(s) for s in self.variations]))
         
     # flattens any sub-Ors into a single list of variations
     def factors(self):
@@ -52,7 +52,7 @@ class And(Expression):
         self.ors = ors
 
     def __repr__(self):
-        return "And({0})".format(",".join(self.ors))
+        return "And({0})".format(",".join([str(s) for s in self.ors]))
 
     def factors(self):
         return product(self)
@@ -110,7 +110,7 @@ def parse_or(chars):
     else:
         variations = "".join(spec).split(",")
         # 2 for the opening and closing brace
-        return (Or(variations), 2 + len(spec))
+        return (Or([Atom(v) for v in variations]), 2 + len(spec))
 
 def bash_cartesian_product(spec):
     """
