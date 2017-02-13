@@ -11,8 +11,8 @@ class Expression:
         return self.__dict__ == other.__dict__
 
     # returns a set of strings to multiply with other sets of strings
-    def factors(self):
-        raise AbstractMethodCall("Expression.factors")
+    def branches(self):
+        raise AbstractMethodCall("Expression.branches")
 
 class AbstractMethodCall(Exception):
     pass
@@ -20,15 +20,15 @@ class AbstractMethodCall(Exception):
 class ParseException(Exception):
     pass
 
-class Atom(Expression):
+class Lit(Expression):
 
     def __init__(self, value):
         self.value = value
 
     def __repr__(self):
-        return "Atom({0})".format(",".join(self.value))
+        return "Lit({0})".format(",".join(self.value))
         
-    def factors(self):
+    def branches(self):
         return [self.value]
 
 class Or(Expression):
@@ -40,10 +40,10 @@ class Or(Expression):
         return "Or({0})".format(",".join([str(s) for s in self.variations]))
         
     # flattens any sub-Ors into a single list of variations
-    def factors(self):
+    def branches(self):
         all = []
         for v in self.variations:
-            all.extend(v.factors())
+            all.extend(v.branches())
         return all
 
 class And(Expression):
@@ -54,7 +54,7 @@ class And(Expression):
     def __repr__(self):
         return "And({0})".format(",".join([str(s) for s in self.ors]))
 
-    def factors(self):
+    def branches(self):
         return product(self)
 
     def product(self, index = 0):
@@ -63,7 +63,7 @@ class And(Expression):
         else:
             
             # branches at this level of the tree
-            variations = self.ors[index].factors()
+            variations = self.ors[index].branches()
             
             # the cartesian product of all the ors to the right of the one at index
             rest = self.product(index + 1)
@@ -73,7 +73,7 @@ class And(Expression):
                 return variations
             else:
                 # for each string to the right, create a string for each variation at this level
-                # TODO: I'll bet string concat is slow. could append segments and then join.
+                # TODO: I'll bet string concat is slow. could append segments and then reverse and join.
                 return [v + result for v in variations for result in rest]
 
 def parse_bash_cp(spec):
@@ -95,22 +95,22 @@ def parse_segment(chars):
     elif chars[0] == "{":
         return parse_or(chars)
     else:
-        return parse_constant(chars)
+        return parse_literal(chars)
 
-def parse_constant(chars):
+def parse_literal(chars):
     static = list(takewhile(lambda c: c not in ["{", "}"], chars))
-    return (Atom(''.join(static)), len(static))
+    return (Lit(''.join(static)), len(static))
         
 def parse_or(chars):
     rest = islice(chars, 1, None)
     spec = list(takewhile(lambda c: c != "}", rest))
-    # TODO: turns out this is wrong - multipliers can nest!  they're full sub-expressions.  need to revamp the design a bit.
+    # TODO: turns out this is wrong - multipliers can nest!  and they're full sub-expressions, and curlies without commas denote literal curlies.  need to revamp the parser.
     if "{" in spec:
         raise ParseException("Second opening brace found before closing brace: " + str(chars))
     else:
         variations = "".join(spec).split(",")
         # 2 for the opening and closing brace
-        return (Or([Atom(v) for v in variations]), 2 + len(spec))
+        return (Or([Lit(v) for v in variations]), 2 + len(spec))
 
 def bash_cartesian_product(spec):
     """
