@@ -1,6 +1,6 @@
 from itertools import takewhile, islice
 
-class Segment:
+class Expression:
     """
     Represents one segment in the input to cartesian_product.
     A sort of AST produced from parsing an input string.
@@ -10,8 +10,9 @@ class Segment:
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
-    def toSets(self):
-        raise AbstractMethodCall("Segment.toSets")
+    # returns a set of strings to multiply with other sets of strings
+    def factors(self):
+        raise AbstractMethodCall("Expression.factors")
 
 class AbstractMethodCall(Exception):
     pass
@@ -19,57 +20,61 @@ class AbstractMethodCall(Exception):
 class ParseException(Exception):
     pass
 
-class Static(Segment):
-    """
-    Represents a segment of static characters in a cartesian product string.
-    """
-    def __init__(self, string):
-        self.string = string
+class Atom(Expression):
+
+    def __init__(self, value):
+        self.value = value
 
     def __repr__(self):
-        return "Static({0})".format(self.string)
+        return "Atom({0})".format(",".join(self.options))
+        
+    def factors(self):
+        return [self.value]
 
-    def toSets(self):
-        return [self.string]
+class Or(Expression):
 
-class Multiplier(Segment):
-    """
-    Represents a set of "multiplier" characters in a cartesian product string.
-    """
-    def __init__(self, options):
-        self.options = options
+    def __init__(self, variations):
+        self.variations = variations
 
     def __repr__(self):
-        return "Multiplier({0})".format(",".join(self.options))
+        return "Or({0})".format(",".join(self.variations))
+        
+    # flattens any sub-Ors into a single list of variations
+    def factors(self):
+        all = []
+        for v in self.variations:
+            all.extend(v.factors())
+        return all
 
-    def toSets(self):
-        return self.options
+class And(Expression):
 
-def cartesian_product(sets, index = 0):
-    """     
-    Returns the list of strings that is the cartesian product of `sets`,
-    which is a list of lists of strings.
+    def __init__(self, ors):
+        self.ors = ors
 
-    # TODO: explain implementation
-    
-    """
-    if index == len(sets):
-        return []
-    else:
+    def __repr__(self):
+        return "And({0})".format(",".join(self.ors))
 
-        # branches at this level of the tree
-        variations = sets[index]
-    
-        # the cartesian product of all branches one level down
-        rest = cartesian_product(sets, index + 1)
+    def factors(self):
+        return product(self)
 
-        # we're at the leaves - start accumulating back up the tree
-        if not rest:
-            return variations
+    def product(self, index = 0):
+        if index == len(self.ors):
+            return []
         else:
-            # for each child string, create a variation for each variation at this level
-            # TODO: I'll bet string concat is slow. could append segments and then join.
-            return [v + result for v in variations for result in rest]
+            
+            # branches at this level of the tree
+            variations = self.ors[index].factors()
+            
+            # the cartesian product of all the ors to the right of the one at index
+            rest = self.product(index + 1)
+            
+            # we're at the leaves - start accumulating back up the tree
+            if not rest:
+                return variations
+            else:
+                # for each string to the right, create a string for each variation at this level
+                # TODO: I'll bet string concat is slow. could append segments and then join.
+                return [v + result for v in variations for result in rest]
 
 def parse_bash_cp(spec):
     """
@@ -82,21 +87,21 @@ def parse_bash_cp(spec):
         (segment, length) = parse_segment(remaining)
         segments.append(segment)
         remaining = list(islice(remaining, length, None))
-    return segments
+    return And(segments)
 
 def parse_segment(chars):
     if chars[0] == "}":
         raise ParseException("Closing brace found before open brace: " + str(chars))
     elif chars[0] == "{":
-        return parse_multiplier(chars)
+        return parse_or(chars)
     else:
-        return parse_static(chars)
+        return parse_constant(chars)
 
-def parse_static(chars):
+def parse_constant(chars):
     static = list(takewhile(lambda c: c not in ["{", "}"], chars))
-    return (Static(''.join(static)), len(static))
+    return (Atom(''.join(static)), len(static))
         
-def parse_multiplier(chars):
+def parse_or(chars):
     rest = islice(chars, 1, None)
     spec = list(takewhile(lambda c: c != "}", rest))
     # TODO: turns out this is wrong - multipliers can nest!  they're full sub-expressions.  need to revamp the design a bit.
@@ -105,7 +110,7 @@ def parse_multiplier(chars):
     else:
         variations = "".join(spec).split(",")
         # 2 for the opening and closing brace
-        return (Multiplier(variations), 2 + len(spec))
+        return (Or(variations), 2 + len(spec))
 
 def bash_cartesian_product(spec):
     """
@@ -121,10 +126,9 @@ def bash_cartesian_product(spec):
     >>> bash_cartesian_product("a{b,c{d,e,f}g,h}ij{k,l}")
     abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl
     """
-    units = parse_bash_cp(spec)
-    multipliers =  [u.toSets() for u in units]
-    permutations = cartesian_product(multipliers)
-    return " ".join(permutations)
+    andExpr = parse_bash_cp(spec)
+    strings = andExpr.product()
+    return " ".join(strings)
 
 if __name__ == '__main__':
     import sys
