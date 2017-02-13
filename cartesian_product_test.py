@@ -45,6 +45,16 @@ class TestCartesianProduct(unittest.TestCase):
                                    Lit("fgh"),
                                    Or([Lit("i"),Lit("j"),Lit("k")])])
         self.assertEqual(cp, ["abcdfghi", "abcdfghj", "abcdfghk", "abcefghi", "abcefghj", "abcefghk"])
+
+    # echo a{b,c}d{e,f,g}hi
+    def test_example_1(self):
+        cp = cartesian_from_terms([Lit("a"),Or([Lit("b"),Lit("c")]),Lit("d"),Or([Lit("e"), Lit("f"), Lit("g")]), Lit("hi")])
+        self.assertEqual(cp, ["abdehi", "abdfhi", "abdghi", "acdehi", "acdfhi", "acdghi"])
+    def test_example_2(self):
+        # echo a{b,c{d,e,f}g,h}ij{k,l}
+        cp = cartesian_from_terms([Lit("a"),Or([Lit("b"),And([Lit("c"),Or([Lit("d"),Lit("e"),Lit("f")]),Lit("g"),Lit("h")])]),Lit("ij"),Or([Lit("k"),Lit("l")])])
+        self.assertEqual(cp, ["abijk", "abijl", "acdgijk", "acdgijl", "acegijk", "acegijl", "acfgijk", "acfgijl", "ahijk", "ahijl"])
+
         
 class TestParseBashCP(unittest.TestCase):
 

@@ -55,7 +55,7 @@ class And(Expression):
         return "And({0})".format(",".join([str(s) for s in self.ors]))
 
     def branches(self):
-        return product(self)
+        return self.product()
 
     def product(self, index = 0):
         if index == len(self.ors):
