@@ -49,44 +49,66 @@ class TestCartesianProduct(unittest.TestCase):
 class TestParseBashCP(unittest.TestCase):
 
     def test_empty_string(self):
-        segments = parse_bash_cp("")
-        self.assertEqual(segments, And([]))
+        expr = parse_bash_cp("")
+        self.assertEqual(expr, And([]))
 
     def test_static(self):
-        segments = parse_bash_cp("abc")
-        self.assertEqual(segments, And([Atom("abc")]))
+        expr = parse_bash_cp("abc")
+        self.assertEqual(expr, And([Atom("abc")]))
 
     def test_multiplier_one_element(self):
-        segments = parse_bash_cp("{a}")
-        self.assertEqual(segments, And([Or([Atom("a")])]))
+        expr = parse_bash_cp("{a}")
+        self.assertEqual(expr, And([Or([Atom("a")])]))
         
     def test_multiplier(self):
-        segments = parse_bash_cp("{a,b,c}")
-        self.assertEqual(segments, And([Or([Atom("a"),Atom("b"),Atom("c")])]))
+        expr = parse_bash_cp("{a,b,c}")
+        self.assertEqual(expr, And([Or([Atom("a"),Atom("b"),Atom("c")])]))
         
     def test_static_multiplier_static(self):
-        segments = parse_bash_cp("abc{d,e,f}ghi{k,l}")
-        self.assertEqual(segments, And([Atom("abc"), Or([Atom("d"),Atom("e"),Atom("f")]), Atom("ghi"), Or([Atom("k"), Atom("l")])]))
+        expr = parse_bash_cp("abc{d,e,f}ghi{k,l}")
+        self.assertEqual(expr, And([Atom("abc"), Or([Atom("d"),Atom("e"),Atom("f")]), Atom("ghi"), Or([Atom("k"), Atom("l")])]))
         
     def test_multiplier_static_multiplier_static(self):
-        segments = parse_bash_cp("{a,b,c}def{g,h,i}kl")
-        self.assertEqual(segments, And([Or([Atom("a"),Atom("b"),Atom("c")]), Atom("def"), Or([Atom("g"),Atom("h"),Atom("i")]), Atom("kl")]))
+        expr = parse_bash_cp("{a,b,c}def{g,h,i}kl")
+        self.assertEqual(expr, And([Or([Atom("a"),Atom("b"),Atom("c")]), Atom("def"), Or([Atom("g"),Atom("h"),Atom("i")]), Atom("kl")]))
 
     def test_multiplier_multiplier(self):
-        segments = parse_bash_cp("{a,b,c}{d,e,f}")
-        self.assertEqual(segments, And([Or([Atom("a"),Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e"),Atom("f")])]))
+        expr = parse_bash_cp("{a,b,c}{d,e,f}")
+        self.assertEqual(expr, And([Or([Atom("a"),Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e"),Atom("f")])]))
 
     def test_nested_multiplier(self):
-        segments = parse_bash_cp("z{a,{b,c},d}y")
-        self.asertEqual(cp, And([Atom("z"),
-                                 Or([Atom("a"),
-                                     Or([Atom("b"), Atom("c")]),
-                                     Atom("d")]),
-                                 Atom("y")]))
-                        
+        expr = parse_bash_cp("z{a,{b,c},d}y")
+        self.assertEqual(expr, And([Atom("z"),
+                                  Or([Atom("a"),
+                                      Or([Atom("b"), Atom("c")]),
+                                      Atom("d")]),
+                                  Atom("y")]))
+
+    # when curlies don't contain a comma, they don't denote a disjunction but a literal enclosed in curlies
+        
+    def test_literal_empty_curlies(self):
+        expr = parse_bash_cp("a{}b{c,d}")
+        self.assertEqual(expr, And([Atom("a{}b"), Or([Atom("c"), Atom("d")])]))
+        
+    def test_nested_literal_curlies_with_subexpr(self):
+        expr = parse_bash_cp("a{b{c,d}}")
+        self.assertEqual(expr, And([Atom("a{b"), Or([Atom("c"), Atom("d")]), Atom("}")]))
+
+    def test_nested_literal_open_curly(self):
+        expr = parse_bash_cp("a{b{c,d}")
+        self.assertEqual(expr, And([Atom("a{b"), Or([Atom("c"), Atom("d")])]))
+
+    def test_nested_literal_close_curly(self):
+        expr = parse_bash_cp("ab{c,d}}")
+        self.assertEqual(expr, And([Atom("ab"), Or([Atom("c"), Atom("d")]), Atom("}")]))
+
+    def test_nested_literal_close_curly_no_open(self):
+        expr = parse_bash_cp("ab}{c,d}")
+        self.assertEqual(expr, And([Atom("ab}"), Or([Atom("c"), Atom("d")])]))
+        
     def test_mix(self):
-        segments = parse_bash_cp("a{b,c}{d,e}fg{h,i,j}")
-        self.assertEqual(segments, And([Atom("a"), Or([Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e")]), Atom("fg"), Or([Atom("h"),Atom("i"),Atom("j")])]))
+        expr = parse_bash_cp("a{b,c}{d,e}fg{h,i,j}")
+        self.assertEqual(expr, And([Atom("a"), Or([Atom("b"),Atom("c")]), Or([Atom("d"),Atom("e")]), Atom("fg"), Or([Atom("h"),Atom("i"),Atom("j")])]))
         
 # tests the integration of the parse/compute steps tested above, and pretty-printing.
 # also tests the two examples provided with the problem.
