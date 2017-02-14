@@ -76,42 +76,61 @@ class And(Expression):
                 # TODO: I'll bet string concat is slow. could append segments and then reverse and join.
                 return [v + result for v in variations for result in rest]
 
-def parse_bash_cp(spec):
+            
+def parse_bash_cp(string):
+    tokens = re.split('([{},])', string)
+    non_empty_tokens = filter(lambda c: c != '', tokens)
+    return parse_expr(non_empty_tokens)
+            
+def parse_expr(cursor):
     """
-     `spec` is the input string to `bash_cartestian_product`.
-     Parses `spec` into a list of Segments.
-     """
-    segments = []
-    remaining = list(spec)
-    while remaining:
-        (segment, length) = parse_segment(remaining)
-        segments.append(segment)
-        remaining = list(islice(remaining, length, None))
-    return And(segments)
+    Returns a pair - the expression beginning with the first token in `cursor`,
+    and the cursor after parsing the expression.
+    
+    Returns (None, None) if no expression can be parsed (cursor has run out of tokens).
 
-def parse_segment(chars):
-    if chars[0] == "}":
-        raise ParseException("Closing brace found before open brace: " + str(chars))
-    elif chars[0] == "{":
-        return parse_or(chars)
+    Since the input string will be fairly small, and the next token
+    does not by itself tell the full story of what type of expression tree
+    we're about to parse, this implementation uses a backtracking approach -
+    just try to parse each possibility until one sticks.  The thinking here
+    is that the readability outweighs the couple milliseconds' difference.
+
+    An expression can be a Lit (literal), Or (a set of variations), 
+    or an And (a sequence of expressions to multiply together).
+    """    
+    return (parse_nothing(cursor) or
+            parse_or(cursor) or
+            parse_and(cursor) or
+            parse_literal(cursor))
+
+def parse_nothing(cursor):
+    if not cursor:
+        return (None, None)
     else:
-        return parse_literal(chars)
+        return None
 
-def parse_literal(chars):
-    static = list(takewhile(lambda c: c not in ["{", "}"], chars))
-    return (Lit(''.join(static)), len(static))
-        
-def parse_or(chars):
-    rest = islice(chars, 1, None)
-    spec = list(takewhile(lambda c: c != "}", rest))
-    # TODO: turns out this is wrong - multipliers can nest!  and they're full sub-expressions, and curlies without commas denote literal curlies.  need to revamp the parser.
-    if "{" in spec:
-        raise ParseException("Second opening brace found before closing brace: " + str(chars))
+def parse_or(cursor):
+    if cursor(0) != "{":
+        return None
     else:
-        variations = "".join(spec).split(",")
-        # 2 for the opening and closing brace
-        return (Or([Lit(v) for v in variations]), 2 + len(spec))
+        branches = []
+        new_cursor = cursor
 
+        # scoop up expressions separated by commas
+        while new_cursor and new_cursor(0) != "}":            
+            (next_expr, new_cursor) = parse_expr(tail(cursor))
+            if new_cursor(0) == ",":
+                branches.append(next_expr)
+
+        # return an Or if we've reached the } and collected at least one branch
+        return new_cursor(0) == "}" and branches and (Or(branches), tail(new_cursor))
+
+def parse_and(cursor):
+    pass
+
+def parse_literal(cursor):
+    pass
+    
 def bash_cartesian_product(spec):
     """
 
