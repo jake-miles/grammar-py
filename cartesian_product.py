@@ -21,18 +21,20 @@ class ParseException(Exception):
     pass
 
 class Lit(Expression):
-
+    "Represents a literal character"
+    
     def __init__(self, value):
         self.value = value
 
     def __repr__(self):
         return "Lit({0})".format(",".join(self.value))
         
-    def branches(self):
+    def product(self):
         return [self.value]
 
 class Or(Expression):
-
+    "Represents a disjunction of expressions that multiply the results"
+    
     def __init__(self, variations):
         self.variations = variations
 
@@ -40,32 +42,32 @@ class Or(Expression):
         return "Or({0})".format(",".join([str(s) for s in self.variations]))
         
     # flattens any sub-Ors into a single list of variations
-    def branches(self):
+    def product(self):
         all = []
         for v in self.variations:
             all.extend(v.branches())
         return all
 
 class And(Expression):
-
-    def __init__(self, ors):
-        self.ors = ors
+    "Represents a sequence of terms to multiply"
+    
+    def __init__(self, terms):
+        self.terms = terms
 
     def __repr__(self):
-        return "And({0})".format(",".join([str(s) for s in self.ors]))
+        return "And({0})".format(",".join([str(s) for s in self.terms]))
 
-    def branches(self):
-        return self.product()
-
+    # this is the main calculation of the cartesian product
+    # TODO: instead of recursion to the end, loop from right to left
     def product(self, index = 0):
-        if index == len(self.ors):
+        if index == len(self.terms):
             return []
         else:
             
             # branches at this level of the tree
-            variations = self.ors[index].branches()
+            variations = self.terms[index].branches()
             
-            # the cartesian product of all the ors to the right of the one at index
+            # the cartesian product of all the terms to the right of the one at index
             rest = self.product(index + 1)
             
             # we're at the leaves - start accumulating back up the tree
@@ -105,31 +107,67 @@ def parse_expr(cursor):
 
 def parse_nothing(cursor):
     if not cursor:
+        # designates "nothing to parse"
         return (None, None)
     else:
+        # None here means "not nothing", so something there to parse
         return None
 
 def parse_or(cursor):
-    if cursor(0) != "{":
+
+    # if `branches` becomes non-empty, then we found a comma and this could be an Or.
+    # It's definitely an Or if we then find the closing "}".
+    # Otherwise it's just a suspiciously Or-looking literal.
+    branches = []
+    new_cursor = cursor
+    
+    def looks_like_start_of_or():
+        return cursor(0) == "{"
+        
+    def looks_like_end_of_or():
+        return new_cursor and new_cursor(0) == "}"
+        
+    def is_defintely_end_of_or():
+        return looks_like_end_of_or() and branches
+        
+    def at_end_of_branch():
+        return new_cursor and (new_cursor(0) == "," or is_definitely_end_of_or())
+
+    if not looks_like_start_of_or():
         return None
     else:
-        branches = []
-        new_cursor = cursor
+        while new_cursor and not looks_like_end_of_or():
 
-        # scoop up expressions separated by commas
-        while new_cursor and new_cursor(0) != "}":            
-            (next_expr, new_cursor) = parse_expr(tail(cursor))
-            if new_cursor(0) == ",":
+            (next_expr, new_cursor) = parse_expr(tail(new_cursor))
+
+            # empty branch - keep it so we know this could be an Or
+            if next_expr == Lit(","):
+                branches.append(Lit(""))
+            elif at_end_of_branch():
                 branches.append(next_expr)
 
-        # return an Or if we've reached the } and collected at least one branch
-        return new_cursor(0) == "}" and branches and (Or(branches), tail(new_cursor))
+        return is_definitely_end_of_or() and (Or(branches), tail(new_cursor))
 
 def parse_and(cursor):
-    pass
 
+    terms = []
+    new_cursor = cursor
+
+    def at_end_of_and():
+        return (not new_cursor) or cursor(0) in ["}", ","]
+
+    while not at_end_of_and():
+        (next_expr, new_cursor) = parse_expr(tail(new_cursor))
+        # TODO: do we always append the term?
+
+    # don't wrap everything in its own And
+    if len(terms) == 1:
+        return (terms(0), tail(new_cursor))
+    else:
+        return terms and (And(terms), tail(new_cursor))
+        
 def parse_literal(cursor):
-    pass
+    return (Lit(cursor(0)), tail(cursor))
     
 def bash_cartesian_product(spec):
     """
