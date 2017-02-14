@@ -10,12 +10,11 @@ class Expression:
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
-    # returns a set of strings to multiply with other sets of strings
-    def branches(self):
-        raise AbstractMethodCall("Expression.branches")
+    def product(self):
+        raise Exception("Call to abstract method Expression.branches")
 
-class AbstractMethodCall(Exception):
-    pass
+    def append(self, other):
+        raise Exception("Call to abstract method Expression.append")
 
 class ParseException(Exception):
     pass
@@ -32,6 +31,9 @@ class Lit(Expression):
     def product(self):
         return [self.value]
 
+    def append(self, other):
+        other is Lit and Lit(self.value + other.value)
+
 class Or(Expression):
     "Represents a disjunction of expressions that multiply the results"
     
@@ -40,7 +42,10 @@ class Or(Expression):
 
     def __repr__(self):
         return "Or({0})".format(",".join([str(s) for s in self.variations]))
-        
+
+    def append(self, other):
+        return None
+    
     # flattens any sub-Ors into a single list of variations
     def product(self):
         all = []
@@ -57,6 +62,11 @@ class And(Expression):
     def __repr__(self):
         return "And({0})".format(",".join([str(s) for s in self.terms]))
 
+    def append(self, other):
+        new_terms = this.terms.copy()
+        new_terms.append(other)
+        return And(new_terms)
+    
     # this is the main calculation of the cartesian product
     # TODO: instead of recursion to the end, loop from right to left
     def product(self, index = 0):
@@ -148,24 +158,41 @@ def parse_or(cursor):
 
         return is_definitely_end_of_or() and (Or(branches), tail(new_cursor))
 
-def parse_and(cursor):
-
+def parse_and(start_cursor):
+    cursor = start_cursor
     terms = []
-    new_cursor = cursor
+    last_term = None
 
-    def at_end_of_and():
-        return (not new_cursor) or cursor(0) in ["}", ","]
+    # the And is finished when we reach the end of the top-level expression
+    # or the end of the current sub-expression
+    def is_end_of_and():
+        return (not cursor) or cursor(0) == "}"
 
-    while not at_end_of_and():
-        (next_expr, new_cursor) = parse_expr(tail(new_cursor))
-        # TODO: do we always append the term?
-
-    # don't wrap everything in its own And
-    if len(terms) == 1:
-        return (terms(0), tail(new_cursor))
+    if is_end_of_and():
+        return None
     else:
-        return terms and (And(terms), tail(new_cursor))
+        while not is_end_of_and():
+
+        (next_expr, cursor) = parse_expr(cursor)
         
+        # to avoid wrapping everything in an And,
+        # see if the new term can be appended to the last
+        new_last_term = (next_expr and last_term and last_term.append(next_expr))
+        if new_last_term:
+            last_term = new_last_term
+        else:
+            terms.append(next_expr)
+
+    if not last_term:
+        return None
+
+    # avoid wrapping everything in an And
+    elif (not terms) and last_term:
+        return (last_term, cursor)
+    else:
+        return (And(terms), cursor)
+            
+    
 def parse_literal(cursor):
     return (Lit(cursor(0)), tail(cursor))
     
