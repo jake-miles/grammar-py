@@ -1,61 +1,6 @@
-import unittest
-from cartesian_product import *
+from cartesian_product_calc import *
+from cartesian_product_parse import parse_bash_cp
 
-def cartesian_from_terms(units):
-    return And(units).product()
-
-class TestCartesianProduct(unittest.TestCase):
-    
-    def test_no_segments(self):
-        cp = cartesian_from_terms([])
-        self.assertEqual(cp, [])
-
-    def test_one_static_segment(self):
-        cp = cartesian_from_terms([Lit("abc")])
-        self.assertEqual(cp, ["abc"])
-
-    def test_multiple_static_segments(self):
-        cp = cartesian_from_terms([Lit("abc"), Lit("def"), Lit("ghi")])
-        self.assertEqual(cp, ["abcdefghi"])
-
-    def test_single_multiplier(self):
-        cp = cartesian_from_terms([Or([Lit("a"),Lit("b"),Lit("c")])])
-        self.assertEqual(cp, ["a", "b", "c"])
-
-    def test_nested_multiplier(self):
-        # echo z{a,{b,c},d}y
-        cp = cartesian_from_terms([Lit("z"),
-                                   Or([Lit("a"),
-                                       Or([Lit("b"), Lit("c")]),
-                                       Lit("d")]),
-                                   Lit("y")])
-        self.assertEqual(cp, ["zay", "zby", "zcy", "zdy"])
-
-    def test_multiple_multipliers(self):
-        # echo {a,b,c}{d,e,f}{g,h,i}
-        cp = cartesian_from_terms([Or([Lit("a"), Lit("b"), Lit("c")]),
-                                   Or([Lit("d"), Lit("e"), Lit("f")]),
-                                   Or([Lit("g"),Lit("h"),Lit("i")])])
-        self.assertEqual(cp, ["adg", "adh", "adi", "aeg", "aeh", "aei", "afg", "afh", "afi", "bdg", "bdh", "bdi", "beg", "beh", "bei", "bfg", "bfh", "bfi", "cdg", "cdh", "cdi", "ceg", "ceh", "cei", "cfg", "cfh", "cfi"])
-        
-    def test_mixed_one_level(self):
-        # echo abc{d,e}fgh{i,j,k}
-        cp = cartesian_from_terms([Lit("abc"),
-                                   Or([Lit("d"),Lit("e")]),
-                                   Lit("fgh"),
-                                   Or([Lit("i"),Lit("j"),Lit("k")])])
-        self.assertEqual(cp, ["abcdfghi", "abcdfghj", "abcdfghk", "abcefghi", "abcefghj", "abcefghk"])
-
-    # echo a{b,c}d{e,f,g}hi
-    def test_example_1(self):
-        cp = cartesian_from_terms([Lit("a"),Or([Lit("b"),Lit("c")]),Lit("d"),Or([Lit("e"), Lit("f"), Lit("g")]), Lit("hi")])
-        self.assertEqual(cp, ["abdehi", "abdfhi", "abdghi", "acdehi", "acdfhi", "acdghi"])
-    def test_example_2(self):
-        # echo a{b,c{d,e,f}g,h}ij{k,l}
-        cp = cartesian_from_terms([Lit("a"),Or([Lit("b"),And([Lit("c"),Or([Lit("d"),Lit("e"),Lit("f")]),Lit("g"),Lit("h")])]),Lit("ij"),Or([Lit("k"),Lit("l")])])
-        self.assertEqual(cp, ["abijk", "abijl", "acdgijk", "acdgijl", "acegijk", "acegijl", "acfgijk", "acfgijl", "ahijk", "ahijl"])
-
-        
 class TestParseBashCP(unittest.TestCase):
 
     def test_empty_string(self):
