@@ -4,7 +4,7 @@ from cartesian_product_calc import *
 def cartesian_from_terms(units):
     return And(units).product()
 
-class TestCartesianProductCalc(unittest.TestCase):
+class CartesianProductTestCalc(unittest.TestCase):
     
     def test_no_segments(self):
         cp = cartesian_from_terms([])

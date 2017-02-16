@@ -1,7 +1,7 @@
 from cartesian_product_calc import *
 from cartesian_product_parse import parse_bash_cp
 
-class TestParseBashCP(unittest.TestCase):
+class CartesianProductParseTest(unittest.TestCase):
 
     def test_empty_string(self):
         expr = parse_bash_cp("")
