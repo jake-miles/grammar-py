@@ -7,7 +7,7 @@ class Cursor:
         self.index = index
 
     def __repr__(self):
-        return "Cursor: " + ",".join([str(self._list[c]) for c in range(self.index, len(self._list))])
+        return "Cursor: " + str([str(self._list[c]) for c in range(self.index, len(self._list))])
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -15,6 +15,9 @@ class Cursor:
     def empty(self):
         return self.index == len(self._list)
 
+    def notEmpty(self):
+        return not self.empty()
+    
     def head(self):
         return self._list[self.index]
     

@@ -59,7 +59,7 @@ def parse_nothing(cursor):
     """
     if cursor.empty():
         # None here means "not nothing", so something left to parse
-        return (None, None)
+        return (None, cursor)
     else:
         # "no expression parsed"
         return None
@@ -79,15 +79,17 @@ def parse_and(start):
     # the And is finished when we reach the end of the top-level expression
     # or the end of the current sub-expression.
     def is_end_of_and():
-        return cursor.empty() or cursor.head() == "}"
+        return cursor.empty() or cursor.head() == "}" or cursor.head() == ","
 
     while not is_end_of_and():
-        print("not is_end_of_and")
+        print("not is_end_of_and", "terms", terms.terms)
         (new_term, cursor) = parse_term(cursor)
-        print("new_term: " + str(new_term))
+        print("new_term", new_term)
         if new_term:
             terms.append(new_term)
+        print("terms", terms.terms, "cursor", cursor)
 
+    print("parse_and returning", terms.toExpression())
     return (terms.toExpression(), cursor)
 
 
@@ -136,32 +138,33 @@ def parse_or(start):
     branches = []
     
     def looks_like_start_of_or():
-        return (not cursor.empty()) and cursor.head() == "{"
+        return cursor.notEmpty() and cursor.head() == "{"
 
     def looks_like_end_of_or():
-        return (not cursor.empty()) and cursor.head() == "}"
+        return cursor.notEmpty() and cursor.head() == "}"
 
     def is_definitely_end_of_or():
         return looks_like_end_of_or() and branches
 
-    # we're at the end of a branch if we hit its comma or end of the Or.
-    def at_end_of_branch():
-        return (not cursor.empty() and
-                (cursor.head() == "," or is_definitely_end_of_or()))
+    def is_end_of_branch():
+        return cursor.notEmpty() and cursor.head() == ","
 
     if not looks_like_start_of_or():
         return None
     else:
-        while (not cursor.empty()) and not looks_like_end_of_or():
+        while cursor.notEmpty() and not looks_like_end_of_or():
 
             (next_branch, cursor) = parse_expr(cursor.tail())
 
             # empty branch - hold onto it to denote that this could be an Or
-            if next_branch == Lit(","):
+            if next_branch and next_branch == Lit(","):
                 branches.append(Lit(""))
-            elif at_end_of_branch():
+            elif next_branch and is_end_of_branch() or is_definitely_end_of_or():
                 branches.append(next_branch)
 
+            print("branches", branches, "cursor", cursor)
+
+    print("parse_or returning", branches)
     return is_definitely_end_of_or() and (Or(branches), cursor.tail())
 
 
@@ -174,7 +177,8 @@ class TermSequence:
     2) If in the end we only captured one term, returns that term instead of
        wrapping it in its own And.
     """
-    terms = []
+    def __init__(self):
+        self.terms = []
             
     def append(self, new_term):
         print("TermSequence.append: " + str(new_term))
