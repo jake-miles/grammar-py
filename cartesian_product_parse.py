@@ -1,10 +1,6 @@
+import re
 from cartesian_product_calc import And, Or, Lit
-from itertools import islice
-
-# returns the tail of the list.  
-def tail(iterator):
-    return islice(iterator, 1, None)
-
+from cursor import Cursor
 
 def parse_bash_cp(string):
     """
@@ -12,10 +8,18 @@ def parse_bash_cp(string):
     which will be a subtype of class `Expression`,
     defined in "cartesian_product_calc.py"
     """
-    tokens = re.split('([{},])', string)
-    non_empty_tokens = filter(lambda c: c != '', tokens)
-    return parse_expr(non_empty_tokens)
+    cursor = create_cursor(string)
+    (expression, empty_cursor) = parse_expr(cursor)
+    # make sure we return an Expression
+    return expression or And([])
 
+def create_cursor(string):
+    # includes the delimiters and characters between them
+    tokens = re.split('([{},])', string)
+    non_empty = [token for token in tokens if token != ""]
+    return Cursor(non_empty)
+    
+    
 """
 All the following `parse_` functions take a "cursor", 
 which` is the list of remaining tokens.
@@ -41,25 +45,28 @@ or an And (a sequence of expressions).
 
 
 def parse_expr(cursor):
+    print("parse_expr", cursor)
     return (parse_nothing(cursor) or
             parse_and(cursor))
 
 
 def parse_nothing(cursor):
+    print("parse_nothing", cursor)
     """
     Returns (None, None) if `cursor` is out of tokens.  
     Otherwise returns None, because this parse_ function didn't match 
     the contents of the cursor.
     """
-    if cursor:
+    if cursor.empty():
         # None here means "not nothing", so something left to parse
-        return None
+        return (None, None)
     else:
         # "no expression parsed"
-        return (None, None)
+        return None
 
 
-def parse_and(start):            
+def parse_and(start):
+    print("parse_and", start)
     """
     Parses the expression at `start` into a sequence of terms.  
     If only one term can be collected, returns that expression on its own.
@@ -72,29 +79,34 @@ def parse_and(start):
     # the And is finished when we reach the end of the top-level expression
     # or the end of the current sub-expression.
     def is_end_of_and():
-        return (not cursor) or cursor(0) == "}"
+        return cursor.empty() or cursor.head() == "}"
 
     while not is_end_of_and():
+        print("not is_end_of_and")
         (new_term, cursor) = parse_term(cursor)
+        print("new_term: " + str(new_term))
         if new_term:
             terms.append(new_term)
 
     return (terms.toExpression(), cursor)
 
 
-def parse_term():
+def parse_term(cursor):
+    print("parse_term", cursor)
     "Parses one term in an And expression"
     return (parse_nothing(cursor) or
             parse_or(cursor) or
-            parse_literal(cursor)
+            parse_literal(cursor))
 
 
 def parse_literal(cursor):
+    print("parse_literal", cursor)
     "Parses one character to be included as a literal in the syntax tree."
-    return (Lit(cursor(0)), tail(cursor))
+    return (Lit(cursor.head()), cursor.tail())
 
 
 def parse_or(start):
+    print("parse_or", start)
     """
     Parses a disjunction of sub-expressions, returning them as an Or.
 
@@ -124,24 +136,25 @@ def parse_or(start):
     branches = []
     
     def looks_like_start_of_or():
-        return cursor and cursor(0) == "{"
+        return (not cursor.empty()) and cursor.head() == "{"
 
     def looks_like_end_of_or():
-        return cursor and cursor(0) == "}"
+        return (not cursor.empty()) and cursor.head() == "}"
 
     def is_definitely_end_of_or():
         return looks_like_end_of_or() and branches
 
     # we're at the end of a branch if we hit its comma or end of the Or.
     def at_end_of_branch():
-        return cursor and (cursor(0) == "," or is_definitely_end_of_or())
+        return (not cursor.empty() and
+                (cursor.head() == "," or is_definitely_end_of_or()))
 
     if not looks_like_start_of_or():
         return None
     else:
-        while cursor and not looks_like_end_of_or():
+        while (not cursor.empty()) and not looks_like_end_of_or():
 
-            (next_branch, cursor) = parse_expr(tail(cursor))
+            (next_branch, cursor) = parse_expr(cursor.tail())
 
             # empty branch - hold onto it to denote that this could be an Or
             if next_branch == Lit(","):
@@ -149,7 +162,7 @@ def parse_or(start):
             elif at_end_of_branch():
                 branches.append(next_branch)
 
-    return is_definitely_end_of_or() and (Or(branches), tail(cursor))
+    return is_definitely_end_of_or() and (Or(branches), cursor.tail())
 
 
 class TermSequence:
@@ -163,20 +176,23 @@ class TermSequence:
     """
     terms = []
             
-    def append(new_term):
+    def append(self, new_term):
+        print("TermSequence.append: " + str(new_term))
         "Incorporates `new_term` into the sequence of collected terms."
-        last_term_extended = terms and terms(0).append(new_term)
-        if last_term_extended:           
-            terms.pop()
-            terms.append(last_term_extended)
+        last_term_extended = self.terms and self.terms[0].append(new_term)
+        if last_term_extended:
+            print("extending last term")
+            self.terms.pop()
+            self.terms.append(last_term_extended)
         else:
-            terms.append(new_term)
+            print("appending new term")
+            self.terms.append(new_term)
 
-    def toExpression():
+    def toExpression(self):
         "Returns the Expression representing the collected sequence of terms."
-        if len(terms) == 1:
-            return terms(0)
+        if len(self.terms) == 1:
+            return self.terms[0]
         else:
-            return And(terms)
+            return And(self.terms)
     
 

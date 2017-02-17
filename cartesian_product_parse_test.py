@@ -1,25 +1,46 @@
-from cartesian_product_calc import *
-from cartesian_product_parse import parse_bash_cp
+import unittest
+from cartesian_product_calc import And, Or, Lit
+from cartesian_product_parse import *
 
 class CartesianProductParseTest(unittest.TestCase):
+        
+    def test_create_cursor_empty_string(self):
+        self.assertEqual(create_cursor(""), Cursor([]))
+
+    def test_create_cursor_non_empty_string(self):
+        self.assertEqual(create_cursor("abc{def,ghi}jk"), Cursor(["abc", "{", "def", ",", "ghi", "}", "jk"]))    
+
+    def test_parse_nothing_empty_cursor(self):
+        self.assertEqual(parse_nothing(Cursor([])), (None, None))
+        
+    def test_parse_nothing_non_empty_cursor(self):
+        self.assertEqual(parse_nothing(Cursor([1])), None)
 
     def test_empty_string(self):
         expr = parse_bash_cp("")
         self.assertEqual(expr, And([]))
 
-    def test_Literal(self):
+    def test_Lit_one_char(self):
+        expr = parse_bash_cp("a")
+        self.assertEqual(expr, And([Lit("a")]))
+        
+    def test_Lit_multiple_chars(self):
         expr = parse_bash_cp("abc")
         self.assertEqual(expr, And([Lit("abc")]))
 
     def test_Or(self):
         expr = parse_bash_cp("{a,b,c}")
         self.assertEqual(expr, And([Or([Lit("a"),Lit("b"),Lit("c")])]))
+
+    def test_Or_Or(self):
+        expr = parse_bash_cp("{d,e,f}{k,l}")
+        self.assertEqual(expr, And([Or([Lit("d"),Lit("e"),Lit("f")]), Lit("ghi"), Or([Lit("k"), Lit("l")])]))
         
-    def test_Literal_Or_Literal(self):
-        expr = parse_bash_cp("abc{d,e,f}ghi{k,l}")
-        self.assertEqual(expr, And([Lit("abc"), Or([Lit("d"),Lit("e"),Lit("f")]), Lit("ghi"), Or([Lit("k"), Lit("l")])]))
+    def test_Lit_Or_Lit(self):
+        expr = parse_bash_cp("abc{d,e,f}ghi")
+        self.assertEqual(expr, And([Lit("abc"), Or([Lit("d"),Lit("e"),Lit("f")]), Lit("ghi")]))
         
-    def test_Or_Literal_Or(self):
+    def test_Or_Lit_Or(self):
         expr = parse_bash_cp("{a,b,c}def{g,h,i}kl")
         self.assertEqual(expr, And([Or([Lit("a"),Lit("b"),Lit("c")]), Lit("def"), Or([Lit("g"),Lit("h"),Lit("i")])]))
 
@@ -27,56 +48,74 @@ class CartesianProductParseTest(unittest.TestCase):
         expr = parse_bash_cp("{a,b,c}{d,e,f}")
         self.assertEqual(expr, And([Or([Lit("a"),Lit("b"),Lit("c")]), Or([Lit("d"),Lit("e"),Lit("f")])]))
 
-    def test_disjunction_first_empty(self):
-        expr = parse_bash_cp("abc{,de}")
+    def test_Or_first_empty(self):
+        expr = parse_bash_cp("{,de}")
         self.assertEqual(expr, And([Lit("abc"),
                                     Or([Lit(""), Lit("de")])]))
 
-    def test_disjunction_second_empty(self):
+    def test_Or_second_empty(self):
         expr = parse_bash_cp("abc{de,}")
         self.assertEqual(expr, And([Lit("abc"),
                                     Or([Lit("de"), Lit("")])]))
         
-    def test_disjunction_all_empty(self):
+    def test_Or_all_empty(self):
         expr = parse_bash_cp("abc{,,}de}")
         self.assertEqual(expr, And([Lit("abc"),
-                                    Or([Lit(""), Lit(""), List("")]),
+                                    Or([Lit(""), Lit(""), Lit("")]),
                                     Lit("de")]))
-        
-    def test_nested_Or(self):
+
+    def test_sub_expression(self):
         expr = parse_bash_cp("z{a,{b,c},d}y")
         self.assertEqual(expr, And([Lit("z"),
                                   Or([Lit("a"),
                                       Or([Lit("b"), Lit("c")]),
                                       Lit("d")]),
                                   Lit("y")]))
-
-    def test_nested_And_beginning_with_Or(self):
-        expr = parse_bash_cp("{{a,b}cd,ef}")
-        self.assertEqual(expr, Or([And([Or([Lit("a"),Lit("b")]),Lit("cd")]), Lit("ef")]))
- 
-    # when curlies don't contain a comma, they don't denote a disjunction but a literal enclosed in curlies
         
-    def test_empty_curlies(self):
-        expr = parse_bash_cp("a{}b{c,d}")
-        self.assertEqual(expr, And([Lit("a{}b"), Or([Lit("c"), Lit("d")])]))
+    def test_nested_Or(self):
+        expr = parse_bash_cp("{{b,c},d}ef")
+        self.assertEqual(expr, And([Or([Or([Lit("b"), Lit("c")]),
+                                        Lit("d")]),
+                                    Lit("ef")]))
 
-    def test_curlies_no_comma(self):
-        expr = parse_bash_cp("a{}b{c,d}")
-        self.assertEqual(expr, And([Lit("a{}b"), Or([Lit("c"), Lit("d")])]))
-        
-    def test_nested_literal_curlies_with_subexpr(self):
+    # when curlies don't contain a comma, they don't denote a Or but a literal that includes the curlies
+
+    def test_literal_open_curly(self):
+        expr = parse_bash_cp("{")
+        self.assertEqual(expr, And([Lit("{")]))                         
+
+    def test_literal_close_curly(self):
+        expr = parse_bash_cp("}")
+        self.assertEqual(expr, And([Lit("}")]))
+
+    def test_literal_open_close_curly(self):
+        expr = parse_bash_cp("{}")
+        self.assertEqual(expr, And([Lit("{}")]))
+
+    def test_empty_curlies_after_literal(self):
+        expr = parse_bash_cp("a{}b")
+        self.assertEqual(expr, And([Lit("a{}b")]))
+
+    def test_literal_curlies_containing_subexpr(self):
         expr = parse_bash_cp("a{b{c,d}}")
         self.assertEqual(expr, And([Lit("a{b"), Or([Lit("c"), Lit("d")]), Lit("}")]))
 
-    def test_literal_open_curly_then_disjunction(self):
-        expr = parse_bash_cp("a{b{c,d}")
+    def test_Or_containing_literal_curly_expression(self):
+        expr = parse_bash_cp("a{b,{cd}}")
+        self.assertEqual(expr, And([Lit("a"), Or([Lit("b"), Lit("{cd}")])]))
+
+    def test_literal_open_curly_then_Or(self):
+        expr = parse_bash_cp("a{{c,d}")
         self.assertEqual(expr, And([Lit("a{b"), Or([Lit("c"), Lit("d")])]))
 
-    def test_literal_open_curly_then_comma(self):
+    def test_literal_open_curly_and_faux_empty_branch(self):
         expr = parse_bash_cp("abc{,de")
         self.assertEqual(expr, Lit("abc{,de"))
-        
+
+    def test_literal_open_curly_and_faux_branch(self):
+        expr = parse_bash_cp("ab{c,de")
+        self.assertEqual(expr, Lit("abc{,de"))
+                         
     def test_nested_literal_close_curly(self):
         expr = parse_bash_cp("ab{c,d}}")
         self.assertEqual(expr, And([Lit("ab"), Or([Lit("c"), Lit("d")]), Lit("}")]))
@@ -86,21 +125,9 @@ class CartesianProductParseTest(unittest.TestCase):
         self.assertEqual(expr, And([Lit("ab}"), Or([Lit("c"), Lit("d")])]))
         
     def test_mix(self):
-        expr = parse_bash_cp("a{b,c}{d,e}fg{h,i,j}")
-        self.assertEqual(expr, And([Lit("a"), Or([Lit("b"),Lit("c")]), Or([Lit("d"),Lit("e")]), Lit("fg"), Or([Lit("h"),Lit("i"),Lit("j")])]))
-        
-# tests the integration of the parse/compute steps tested above, and pretty-printing.
-# if all the tests above pass, it would be very strange if these failed.
-class TestBashCP(unittest.TestCase):
-
-    def test_example_1(self):
-        cp = bash_cartesian_product("a{b,c}d{e,f,g}hi")
-        self.assertEqual(cp, "abdehi abdfhi abdghi acdehi acdfhi acdghi")
-
-    def test_example_2(self):
-        cp = bash_cartesian_product("a{b,c{d,e,f}g,h}ij{k,l}")
-        self.assertEqual(cp, "abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl")
-            
+        expr = parse_bash_cp("a{b,c}{d,e}fg{h,{y,z}i,j}")
+        self.assertEqual(expr, And([Lit("a"), Or([Lit("b"),Lit("c")]), Or([Lit("d"),Lit("e")]), Lit("fg"), Or([Lit("h"),Or([Lit("y"), Lit("z")]), Lit("i"),Lit("j")])]))
+                    
 if __name__ == '__main__':
     unittest.main()
     
