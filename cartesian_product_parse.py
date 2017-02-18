@@ -18,7 +18,17 @@ def create_cursor(string):
     tokens = re.split('([{},])', string)
     non_empty = [token for token in tokens if token != ""]
     return Cursor(non_empty)
-    
+
+"""
+
+a top-level expression is an And, possibly unwrapping into a single term
+an Or starts parsing branches, where a branch is an And ending in either a ,
+or a }
+
+
+"""
+
+
     
 """
 All the following `parse_` functions take a "cursor", 
@@ -48,6 +58,7 @@ def parse_expr(cursor):
     print("parse_expr", cursor)
     return (parse_nothing(cursor) or
             parse_and(cursor) or
+            parse_or(cursor) or
             parse_literal(cursor))
 
 
@@ -138,46 +149,49 @@ def parse_or(start):
     # if `branches` becomes non-empty, then we found a comma
     branches = []
     
-    def looks_like_start_of_or():
-        return cursor.notEmpty() and cursor.head() == "{"
-
-    def looks_like_end_of_or():
-        return cursor.notEmpty() and cursor.head() == "}"
-
-    def is_definitely_end_of_or():
-        return looks_like_end_of_or() and branches
-
-    def is_end_of_branch():
-        return cursor.notEmpty() and cursor.head() == ","
-
-    if not looks_like_start_of_or():
+    if not looks_like_start_of_or(cursor):
         return None
     else:
-        while cursor.notEmpty() and not looks_like_end_of_or():
-
-            (next_branch, cursor) = parse_branch(cursor.tail())
+        while cursor.notEmpty() and not looks_like_end_of_or(cursor):
+            (next_branch, cursor) = parse_branch(cursor.tail(), branches)
             print("next_branch", next_branch, "cursor", cursor)
-            if next_branch and is_end_of_branch() or is_definitely_end_of_or():
+            if next_branch and is_end_of_branch(cursor, branches):
                 print("appending branch")
                 branches.append(next_branch)
 
             print("branches", branches, "cursor", cursor)
 
     print("parse_or returning", branches)
-    return is_definitely_end_of_or() and (Or(branches), cursor.tail())
+    return is_definitely_end_of_or(cursor, branches) and (Or(branches), cursor.tail())
 
-def parse_branch(cursor):
+
+def looks_like_start_of_or(cursor):
+    return cursor.notEmpty() and cursor.head() == "{"
+
+def looks_like_end_of_or(cursor):
+    return cursor.notEmpty() and cursor.head() == "}"
+
+def is_definitely_end_of_or(cursor, branches):
+    return looks_like_end_of_or(cursor) and branches
+
+def is_end_of_branch(cursor, existing_branches):
+    return (cursor.notEmpty() and
+            (cursor.head() == "," or
+             is_definitely_end_of_or(cursor, existing_branches)))
+             
+
+def parse_branch(cursor, branches):
     print("parse_branch", cursor)
     return (parse_nothing(cursor) or
-            parse_empty(cursor) or
+            parse_empty(cursor, branches) or
             parse_and(cursor) or
+            parse_or(cursor) or
             parse_literal(cursor))
 
-def parse_empty(cursor):
+def parse_empty(cursor, branches):
     print("parse_empty", cursor)
-    return (cursor.notEmpty() and
-            cursor.head() == "," and
-            (Empty(), cursor))
+    return is_end_of_branch(cursor, branches) and (Empty(), cursor)
+
 
 class TermSequence:
     """
@@ -205,11 +219,10 @@ class TermSequence:
 
     def toResult(self, cursor):
         "Returns the Expression representing the collected sequence of terms."
-        if not self.terms:
-            return None
-        if len(self.terms) == 1:
-            return (self.terms[0], cursor)
-        else:
-            return (And(self.terms), cursor)
+        return (self.terms and
+                len(self.terms) > 1
+                and (And(self.terms), cursor))
+
+
     
 
