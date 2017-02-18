@@ -188,6 +188,8 @@ def parse_branch(cursor, branches):
             parse_or(cursor) or
             parse_literal(cursor))
 
+# parse_empty is a special one because the } denotes an empty branch
+# only if we've already found one or more branches.  otherwise it's just a literal }.
 def parse_empty(cursor, branches):
     print("parse_empty", cursor)
     return is_end_of_branch(cursor, branches) and (Empty(), cursor)
