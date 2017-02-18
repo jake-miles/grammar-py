@@ -41,6 +41,22 @@ class Expression:
         return self.__dict__ == other.__dict__
 
     
+class Empty(Expression):
+    "Represents an empty disjunction branch"
+
+    def __init__(self):
+        pass
+    
+    def __repr__(self):
+        return "Empty"
+        
+    def cartesian_product(self):
+        return []
+
+    def append(self, other):
+        return other
+
+    
 class Lit(Expression):
     "Represents a literal string, whose cartesian product is that string"
     
@@ -55,7 +71,7 @@ class Lit(Expression):
 
     # consolidate adjacent Lit's into one 
     def append(self, other):
-        other is Lit and Lit(self.value + other.value)
+        return other is Lit and Lit(self.value + other.value)
 
 class Or(Expression):
     """

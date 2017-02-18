@@ -23,6 +23,6 @@ class Cursor:
     
     def tail(self):
         if self.empty():
-            return self
+            raise Exception("tail called on empty Cursor")
         else:
             return Cursor(self._list, self.index + 1)

@@ -1,5 +1,5 @@
 import re
-from cartesian_product_calc import And, Or, Lit
+from cartesian_product_calc import And, Or, Lit, Empty
 from cursor import Cursor
 
 def parse_bash_cp(string):
@@ -47,7 +47,8 @@ or an And (a sequence of expressions).
 def parse_expr(cursor):
     print("parse_expr", cursor)
     return (parse_nothing(cursor) or
-            parse_and(cursor))
+            parse_and(cursor) or
+            parse_literal(cursor))
 
 
 def parse_nothing(cursor):
@@ -89,8 +90,8 @@ def parse_and(start):
             terms.append(new_term)
         print("terms", terms.terms, "cursor", cursor)
 
-    print("parse_and returning", terms.toExpression())
-    return (terms.toExpression(), cursor)
+    print("parse_and returning", terms.toResult(cursor))
+    return terms.toResult(cursor)
 
 
 def parse_term(cursor):
@@ -154,12 +155,10 @@ def parse_or(start):
     else:
         while cursor.notEmpty() and not looks_like_end_of_or():
 
-            (next_branch, cursor) = parse_expr(cursor.tail())
-
-            # empty branch - hold onto it to denote that this could be an Or
-            if next_branch and next_branch == Lit(","):
-                branches.append(Lit(""))
-            elif next_branch and is_end_of_branch() or is_definitely_end_of_or():
+            (next_branch, cursor) = parse_branch(cursor.tail())
+            print("next_branch", next_branch, "cursor", cursor)
+            if next_branch and is_end_of_branch() or is_definitely_end_of_or():
+                print("appending branch")
                 branches.append(next_branch)
 
             print("branches", branches, "cursor", cursor)
@@ -167,6 +166,18 @@ def parse_or(start):
     print("parse_or returning", branches)
     return is_definitely_end_of_or() and (Or(branches), cursor.tail())
 
+def parse_branch(cursor):
+    print("parse_branch", cursor)
+    return (parse_nothing(cursor) or
+            parse_empty(cursor) or
+            parse_and(cursor) or
+            parse_literal(cursor))
+
+def parse_empty(cursor):
+    print("parse_empty", cursor)
+    return (cursor.notEmpty() and
+            cursor.head() == "," and
+            (Empty(), cursor))
 
 class TermSequence:
     """
@@ -192,11 +203,13 @@ class TermSequence:
             print("appending new term")
             self.terms.append(new_term)
 
-    def toExpression(self):
+    def toResult(self, cursor):
         "Returns the Expression representing the collected sequence of terms."
+        if not self.terms:
+            return None
         if len(self.terms) == 1:
-            return self.terms[0]
+            return (self.terms[0], cursor)
         else:
-            return And(self.terms)
+            return (And(self.terms), cursor)
     
 

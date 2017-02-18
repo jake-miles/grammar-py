@@ -48,17 +48,17 @@ class CartesianProductParseTest(unittest.TestCase):
 ###                
     def test_Or_first_empty(self):
         expr = parse_bash_cp("{,de}")
-        self.assertEqual(expr, Or([Lit(""), Lit("de")]))
+        self.assertEqual(expr, Or([Empty(), Lit("de")]))
 
     def test_Or_second_empty(self):
         expr = parse_bash_cp("abc{de,}")
         self.assertEqual(expr, And([Lit("abc"),
-                                    Or([Lit("de"), Lit("")])]))
+                                    Or([Lit("de"), Empty()])]))
         
     def test_Or_all_empty(self):
         expr = parse_bash_cp("abc{,,}de}")
         self.assertEqual(expr, And([Lit("abc"),
-                                    Or([Lit(""), Lit(""), Lit("")]),
+                                    Or([Empty(), Empty(), Empty()]),
                                     Lit("de")]))
 
     def test_sub_expression(self):
@@ -74,7 +74,7 @@ class CartesianProductParseTest(unittest.TestCase):
         self.assertEqual(expr, And([Or([Or([Lit("b"), Lit("c")]),
                                         Lit("d")]),
                                     Lit("ef")]))
-
+    
     # when curlies don't contain a comma, they don't denote a Or but a literal that includes the curlies
 
     def test_literal_open_curly(self):
