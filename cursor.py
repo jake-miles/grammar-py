@@ -26,3 +26,29 @@ class Cursor:
             raise Exception("tail called on empty Cursor")
         else:
             return Cursor(self._list, self.index + 1)
+
+    def find(self, isMatch):
+        """
+        Returns None if `isMatch` does not return true for any item in this cursor,
+        or a pair if it does: the matching item, and the cursor at the matching item.
+        """
+        (match, cursor) = (None, self)
+        while cursor.notEmpty() and (cursor.isAt(self) or not isMatch(cursor.head()):
+            (match, cursor) = (cursor.head(), cursor)
+        return match and (match, cursor)
+
+    def isAt(self, other_cursor):
+        return self.index == other_cursor.index
+
+    def crawl_while(self, crawl, keep_going):
+        mappings = []
+        cursor = self
+        while cursor.notEmpty() and (cursor.isAt(self) or keep_going(cursor.head(), cursor)):
+            (mapping, cursor) = crawl(cursor)
+            if mapping:
+                mappings.append(mapping)
+        return (mappings, cursor)
+    
+
+    
+    
