@@ -23,11 +23,8 @@ def create_cursor(string):
 
 # a grammar for the input string
 
-# the parsers produce a dictionary of "kept" values after parsing the string.
-# these 'to' functions each turn the expected dictionary of values into syntax tree nodes
-
 def toLit(result):
-    literals = keeps['literals']
+    literals = result.keeps['literals']
     return Lit("".join(literals))
 
 def toOr(result):
@@ -55,7 +52,7 @@ parse_or = AllOf([
     open_curly,
     OneOrMore(AllOf([parse_branch.keepAs('branches'), comma])),
     OneOf([
-        AllOf([parse_term.keepAs('branches'), close_curly]),
+        AllOf([parse_branch.keepAs('branches'), close_curly]),
         close_curly
     ])
 ]).map(toOr)

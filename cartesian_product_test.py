@@ -8,11 +8,13 @@ def loadTests(case):
 
 class CartesianProductTest:
     def suite():
-        return unittest.TestSuite([
-            loadTests(TestCartesianProductCalc),
-            loadTests(TestCartesianProductParse),
-            loadTests(TestBashCP)
-        ])
+        return unittest.TestSuite(map(loadTest, [
+            CursorTest,
+            GrammarTest,
+            TestCartesianProductCalc,
+            TestCartesianProductParse,
+            TestBashCP
+        ]))
 
 # just tests the integration of the parse/compute steps tested above, and pretty-printing.
 # if all the tests above pass, it would be very strange if these failed.
