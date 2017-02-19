@@ -23,36 +23,34 @@ def create_cursor(string):
 
 # a grammar for the input string
 
-def toLit(result):
-    literals = result.keeps['literals']
+def toLit(literals, keeps):
     return Lit("".join(literals))
 
-def toOr(result):
+def toOr(value, keeps):
     branches = result.keeps['branches'].copy()
-    last = result.keeps['last']
+    last = result.keeps['last_branch']
     if last:
         branches.append(last)        
     return Or(branches)
 
-def toAnd(result):
-    terms = result.keeps['terms']
+def toAnd(terms, keeps):
     return And(terms)
 
 open_curly = Token("{")
 close_curly = Token("}")
 comma = Token(",")
 
-parse_literal = OneOrMore(AnyToken().keepAs('literals')).map(toLit)
+parse_literal = OneOrMore(AnyToken()).map(toLit)
 
 parse_term = OneOf([parse_or, parse_literal])
-parse_and = MoreThanOne(parse_term.keepAs('terms')).map(toAnd)
+parse_and = MoreThanOne(parse_term).map(toAnd)
 
 parse_branch = OneOf([parse_and, parse_or, parse_literal])
 parse_or = AllOf([
     open_curly,
-    OneOrMore(AllOf([parse_branch.keepAs('branches'), comma])),
+    OneOrMore(AllOf([parse_branch.keep('branches'), comma])),
     OneOf([
-        AllOf([parse_branch.keepAs('branches'), close_curly]),
+        AllOf([parse_branch.keep('last_branch'), close_curly]),
         close_curly
     ])
 ]).map(toOr)

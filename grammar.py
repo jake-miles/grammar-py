@@ -7,9 +7,10 @@ class Grammar:
             return self.parse_non_empty(cursor)
 
     def map(self, f):
-        return Map(f, self)
+        "`f` is (lambda value, keeps: new_value)"
+        return MapResult(f, self)
 
-    def keepAs(self, name):
+    def keep(self, name):
         return Keep(name, self)
 
     def clear(self):
@@ -32,30 +33,17 @@ class Result:
     def __init__(self, value, keeps = None):
         """
         `value` is the specific result of the Grammar that matched the input.
-        `keeps` is a dictionary of values kept during parsing using `keepAs`.
+        `keeps` is a dictionary of values kept during parsing using `keep`.
         """
         self.value = value
         self.keeps = keeps or dict()
 
     def merge_all(results):
         all_values = map(lambda result: result.value, results)
-        all_keeps = dict()
+        all_keeps = {}
         for result in results:
-            all_keeps = Result.merge_keeps(all_keeps, result.keeps)
+            all_keeps.update(result.keeps)
             return Result(all_values, all_keeps)
-
-    # merges the dictionaries, turning any common key into a flattened list of values.  
-    def merge_keeps(keeps1, keeps2):
-        merged = keeps1.copy()
-        for k,v in keeps2:
-            if k not in merged:
-                merged[k] = v
-            elif isinstance(merged[k], (list)) and isinstance(keeps2[k], (list)):
-                merged[k].extend(keeps2[k])
-            elif isinstance(merged[k], (list)):
-                merged[k].append(keeps2[k])
-        return merged
-
         
 
 ########################################################################
@@ -80,7 +68,11 @@ class Token(Grammar):
 
     
 class OneOrMore(Grammar):
-    "Matches one or more subsequent matches"
+    """
+    Matches one or more subsequent matches.  
+    `Result.value` is a list of the collected
+    Results' values, and `Result.keeps` is a result of merging their `keeps`.
+    """
     
     def __init__(self, grammar):
         self.grammar = grammar
@@ -91,7 +83,11 @@ class OneOrMore(Grammar):
     
     
 class MoreThanOne(Grammar):
-    "Matches at least two in a row of a grammar"
+    """
+    Matches at least two in a row of a grammar.
+    `Result.value` is a list of the collected
+    Results' values, and `Result.keeps` is a result of merging their `keeps`.
+    """
 
     def __init__(self, grammar):
         self.grammar = grammar
@@ -101,7 +97,11 @@ class MoreThanOne(Grammar):
 
     
 class AllOf(Grammar):
-    "Matches an entire list of grammars in sequence."
+    """
+    Matches an entire list of grammars in sequence.
+    `Result.value` is True if it's a match,
+    and `Result.keeps` is a result of merging the Results' `keeps`.
+    """
 
     def __init__(self, grammars):
         self.grammars = grammers
@@ -126,17 +126,13 @@ class OneOf(Grammar):
         self.grammars = grammars
 
     def parse_non_empty(self, start):
-        # find a grammar in `self.grammars` that produces a result
-        # `match` here is a (Result, Cursor)
-
-    return Cursor(self.grammars).next_map(lambda parser: parser.parse(start))
+        return Cursor(self.grammars).next_map(lambda parser: parser.parse(start))
 
 
 #############################################################################
 # Grammars that transform a matched Result as it returns back up the stack.
 
 class MapResult(Grammar):
-    "Maps this Result into a new Result."
 
     def __init__(self, f, grammar):
         self.f = f
@@ -144,13 +140,19 @@ class MapResult(Grammar):
 
     def parse_non_empty(self, start):
         (result, end) = self.grammar.parse(start)
-        return result and (self.f(result), end)
+        return result and (self.f(result.value, result.keeps), end)
 
     
 class Map(MapResult):
-    def __init__(self, f, grammar):
-        MapResult.__init__(self, lambda r: Result(f(r.value), r.keeps), grammar)
-
+    """
+    Maps this Result's value into a new value.  Takes a function `f`
+    that is called with the current result value and the `keeps` map.
+    `f` should return the new value for the Result.
+    """
+    def __init__(self, grammar):
+        MapResult.__init__(self, lambda result: Result(self.f(result.value), result.keeps), grammar)    
+    
+    
 class Keep(MapResult):
     "Maps the Result to one with the result's value in the `keeps` dictionary."
 
@@ -159,6 +161,8 @@ class Keep(MapResult):
 
     def add_key(self, result):
         new_keeps = result.keeps.copy()
+        if new_keeps[self.name]:
+            raise Exception("Keep: adding duplicate key '" + self.name + "'")
         new_keeps[self.name] = result.value
         return Result(result.value, new_keeps)
 
