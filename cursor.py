@@ -27,23 +27,41 @@ class Cursor:
         else:
             return Cursor(self._list, self.index + 1)
 
-    def find(self, isMatch):
-        """
-        Returns None if `isMatch` does not return true for any item in this cursor,
-        or a pair if it does: the matching item, and the cursor at the matching item.
-        """
-        (match, cursor) = (None, self)
-        while cursor.notEmpty() and (cursor.isAt(self) or not isMatch(cursor.head()):
-            (match, cursor) = (cursor.head(), cursor)
-        return match and (match, cursor)
-
     def isAt(self, other_cursor):
         return self.index == other_cursor.index
+        
+    def find(self, isMatch):
+        """
+        Returns None if `isMatch` does not return a truthy value 
+        for any item in this cursor, or a pair if it does: 
+        the truthy value returned from `isMatch`, and the cursor at the matching item.
+        """
+        match = None
+        cursor = self
+        while cursor.notEmpty() and (cursor.isAt(self) or not match):
+            match = isMatch(cursor.head())
+            cursor = cursor.tail()
+        return (match, cursor)
 
-    def crawl_while(self, crawl, keep_going):
+    def map_while(self, map_fn):
+        """
+        Maps elements of this cursor via `map_fn` until `map_fn` returns falsy.
+        """
         mappings = []
         cursor = self
-        while cursor.notEmpty() and (cursor.isAt(self) or keep_going(cursor.head(), cursor)):
+        mapping = None
+        while cursor.notEmpty() and (cursor.isAt(self) or mapping):
+            mapping = map_fn(cursor.head())
+            if mapping:
+                mappings.append(mapping)
+            cursor = cursor.tail()
+        return (mappings, cursor)
+            
+    def crawl_while(self, crawl):
+        mappings = []
+        cursor = self
+        mapping = None
+        while cursor.notEmpty() and (cursor.isAt(self) or mapping):
             (mapping, cursor) = crawl(cursor)
             if mapping:
                 mappings.append(mapping)
