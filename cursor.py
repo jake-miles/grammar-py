@@ -33,7 +33,7 @@ class Cursor:
     def is_at(self, other_cursor):
         return self.index == other_cursor.index
                 
-    def map_while(self, map_fn, while_falsy = False):
+    def map_while(self, map_fn):
         """
         Maps elements of this cursor via `map_fn` until `map_fn` returns falsy.
         If `while_falsy` is true, does the inverse: maps elements
@@ -42,12 +42,12 @@ class Cursor:
         """
         mappings = []
         cursor = self
-        mapping = None
-        while cursor.not_empty() and (cursor.is_at(self) or mapping):
+        mapping = True
+        while cursor.not_empty() and mapping:
             mapping = map_fn(cursor.head())
-            if mapping or while_falsy:
+            if mapping:
                 mappings.append(mapping)
-            cursor = cursor.tail()
+                cursor = cursor.tail()
         return (mappings, cursor)
 
     def next_map(self, map_fn):
@@ -59,8 +59,13 @@ class Cursor:
         This is similar to python's built-in `next` except that it returns the
         truthy mapped value, not the element that produced the truthy mapped value.
         """
-        (_, cursor) = self.map_while(map_fn, while_falsy = True)
-        return (cursor.nonEmpty() and cursor.head(), cursor)
+        cursor = self
+        mapping = False
+        while cursor.not_empty() and not mapping:
+            mapping = map_fn(cursor.head())
+            if not mapping:
+                cursor = cursor.tail()
+        return (mapping, cursor)
     
     def crawl_while(self, crawl):
         """
@@ -77,10 +82,11 @@ class Cursor:
         """
         mappings = []
         cursor = self
-        mapping = None
-        while cursor.not_empty() and (cursor.is_at(self) or mapping):
+        result = True
+        mapping = True                
+        while cursor.not_empty() and result and mapping:
             result = crawl(cursor)
-            if result:
+            if result:                
                 (mapping, cursor) = result
                 if mapping:
                     mappings.append(mapping)
