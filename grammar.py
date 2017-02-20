@@ -11,9 +11,12 @@ class Grammar:
         else:
             return self.parse_non_empty(cursor)
 
+    def mapResult(self, f):
+        return MapResult(f, self)
+        
     def map(self, f):
         "`f` is (lambda value, keeps: new_value)"
-        return MapResult(f, self)
+        return Map(f, self)
 
     def keep(self, name):
         return Keep(name, self)
@@ -63,7 +66,7 @@ class Lazy(Grammar):
     def __init__(self, thunk):
         self.thunk = thunk
 
-    def parse(cursor):
+    def parse(self, cursor):
         return self.thunk().parse(cursor)
 
     
@@ -85,13 +88,13 @@ class Token(Grammar):
             return (Result(start.head()), start.tail())
         else:
             return (False, start)
-
+        
         
 class AllOf(Grammar):
     """
     Matches an entire list of grammars in sequence.
-    `Result.value` is True if it's a match
-    To retain values from the individual grammars, use `keep`.
+    `Result.value` is the list of the grammars' results if a match.
+    To retain values from the individual grammars more usefully, use `keep`.
     """
 
     def __init__(self, grammars):
@@ -117,7 +120,7 @@ class AllOf(Grammar):
         if not (results and grammars.val.empty()):            
             return (None, start)
         else:
-            return (Result(True), end)
+            return (Result.merge_all(results), end)
 
 
 class OneOrMore(Grammar):
@@ -150,7 +153,15 @@ class MoreThanOne(Grammar):
         self.grammar = grammar
 
     def parse_non_empty(self, start):
-        return AllOf([self.grammar, OneOrMore(self.grammar)]).parse(start)
+
+        def flatten(results):
+            first = results[0]
+            rest = results[1]
+            flattened = [first]
+            flattened.extend(rest)
+            return flattened
+
+        return AllOf([self.grammar, OneOrMore(self.grammar)]).map(flatten).parse(start)
 
 
 class OneOf(Grammar):
@@ -160,7 +171,14 @@ class OneOf(Grammar):
         self.grammars = grammars
 
     def parse_non_empty(self, start):
-        return Cursor(self.grammars).next_map(lambda parser: parser.parse(start))
+        grammars = Cursor(self.grammars)
+        result = False
+        end = start
+        while grammars.not_empty() and not result:
+            (result, end) = grammars.head().parse(start)
+            if not result:
+                grammars = grammars.tail()
+        return (result, end)
 
 
 #############################################################################
@@ -174,7 +192,7 @@ class MapResult(Grammar):
 
     def parse_non_empty(self, start):
         (result, end) = self.grammar.parse(start)
-        return result and (self.f(result.value, result.keeps), end)
+        return (result and self.f(result), end)
 
     
 class Map(MapResult):
@@ -183,19 +201,22 @@ class Map(MapResult):
     that is called with the current result value and the `keeps` map.
     `f` should return the new value for the Result.
     """
-    def __init__(self, grammar):
-        MapResult.__init__(self, lambda result: Result(self.f(result.value), result.keeps), grammar)    
+    def __init__(self, f, grammar):
+        MapResult.__init__(self,
+                           lambda result: result.value and Result(f(result.value, result.keeps), result.keeps),
+                           grammar)    
     
     
 class Keep(MapResult):
     "Maps the Result to one with the result's value in the `keeps` dictionary."
 
     def __init__(self, name, grammar):
-        MapResult.__init__(self, lambda result: self.add_key(result), grammar)
+        MapResult.__init__(self, self.add_key, grammar)
+        self.name = name
 
     def add_key(self, result):
         new_keeps = result.keeps.copy()
-        if new_keeps[self.name]:
+        if self.name in new_keeps:
             raise Exception("Keep: adding duplicate key '" + self.name + "'")
         new_keeps[self.name] = result.value
         return Result(result.value, new_keeps)

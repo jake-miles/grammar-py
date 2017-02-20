@@ -1,6 +1,7 @@
 import unittest
 from grammar import *
 from cursor import Cursor
+import re
 
 class GrammarTest(unittest.TestCase):
 
@@ -95,7 +96,7 @@ class AllOfTest(unittest.TestCase):
         input = Cursor(["hello", "goodbye", "sunshine", "rain", "clouds"])
         (result, end) = AllOfTest.grammar.parse(input)
         # Result.value is just True for this one - to retain values use `keep`
-        self.assertTrue(result.value)
+        self.assertEqual(result, Result(["hello", "goodbye", "sunshine"]))
         self.assertEqual(end, input.at(3))
 
                 
@@ -136,15 +137,15 @@ class MoreThanOneTest(unittest.TestCase):
         grammar = MoreThanOne(Token("sunshine"))
         input = Cursor(["hello", "goodbye", "sunshine"])
         (result, end) = grammar.parse(input)
-        self.assertFalse(result.value)
+        self.assertFalse(result)
         self.assertEqual(end, input)
         
     def test_one_no_match(self):
         grammar = MoreThanOne(Token("hello"))
         input = Cursor(["hello", "goodbye", "sunshine"])
         (result, end) = grammar.parse(input)
-        self.assertFalse(result.value)
-        self.assertEqual(end, input.at(1))
+        self.assertFalse(result)
+        self.assertEqual(end, input)
         
     def test_two_match(self):
         grammar = MoreThanOne(Token("hello"))
@@ -163,70 +164,117 @@ class MoreThanOneTest(unittest.TestCase):
         
 class OneOfTest(unittest.TestCase):
 
-    def __init__(self):
-        self.grammar = OneOf([Token("hello"), Token("goodbye"), Token("sunshine")])
+    grammar = OneOf([Token("hello"), Token("goodbye"), Token("sunshine")])
     
     def test_no_match(self):
         input = Cursor(["rain", "hello"])
-        result = self.grammar.parse(input)
+        (result, end) = OneOfTest.grammar.parse(input)
         self.assertFalse(result)
         self.assertEqual(end, input)
         
     def test_first_option_match(self):
         input = Cursor(["hello", "rain"])
-        result = self.grammar.parse(input)
+        (result, end) = OneOfTest.grammar.parse(input)
         self.assertEqual(result.value, "hello")
         self.assertEqual(end, input.at(1))
         
     def test_middle_option_match(self):
         input = Cursor(["goodbye", "rain"])
-        result = self.grammar.parse(input)
-        self.assertTrue(result.value, "goodbye")
+        (result, end) = OneOfTest.grammar.parse(input)
+        self.assertEqual(result.value, "goodbye")
         self.assertEqual(end, input.at(1))
         
     def test_last_option_match(self):
         input = Cursor(["sunshine", "rain"])
-        result = self.grammar.parse(input)
-        self.assertTrue(result.value, "rain")
+        (result, end) = OneOfTest.grammar.parse(input)
+        self.assertEqual(result.value, "sunshine")
         self.assertEqual(end, input.at(1))
 
 
 class LazyTest(unittest.TestCase):
-    def test_allows_forward_reference(self):
-        a = Token("a")        
-        b = OneOf([a, Lazy(lambda: c)])
-        c = MoreThanOne(a)
-        (result, cursor) = a.parse(Cursor(["a", "a"]))
-        self.assertEqual(result, Result(["a", "a"]))
-        self.assertTrue(cursor.empty())
 
-                
+    def test_passes_through_to_grammar(self):
+        a = Lazy(lambda: Token("c"))
+        (result, end) = a.parse(Cursor(["c"]))
+        self.assertEqual(result.value, "c")
+        self.assertTrue(end.empty())
+
+        
 class KeepTest(unittest.TestCase):
 
     def test_adds_key(self):
-        result = Result(5, { 'a': 1 }).keep('b')
-        self.assertEqual(result, Result(5, { 'a': 1, 'b': 5 }))
+        (result, end) = AnyToken().keep('key').parse(Cursor(["a"]))
+        self.assertEqual(result, Result("a", { 'key': 'a' }))
 
     def test_use_with_all_of(self):
         grammar = AllOf([Token("hello").keep('h'), Token("goodbye"), Token("sunshine").keep('s')])
-        input = "hello goodbye sunshine"
-        (result, cursor) = grammar.parse(input)
-        self.assertEqual(result, Result(True, { 'h': 'hello', 's': 'sunshine' }))
+        (result, cursor) = grammar.parse(Cursor(["hello", "goodbye", "sunshine"]))
+        self.assertEqual(result, Result(["hello", "goodbye", "sunshine"],
+                                        { 'h': 'hello', 's': 'sunshine' }))
         
         
 class MapTest(unittest.TestCase):
-        
+
+    def test_does_not_map_falsy_value(self):
+        (result, end) = Token("c").map(lambda v, keeps: v + "b").parse(Cursor(["a"]))
+        self.assertFalse(result)
+    
     def test_maps_value(self):
-        result = Result(5, { 'a': 2 }).map(lambda value, keeps: value * keeps['a'])
-        self.assertEqual(result, Result(10, { 'a': 2 }))
+        (result, end) = AnyToken().map(lambda v, keeps: v + "b").parse(Cursor(["a"]))
+        self.assertEqual(result, Result("ab"))
 
         
 class ClearTest(unittest.TestCase):
 
     def test_clears_keeps(self):
-        result = Result(5, { 'a': 1 }).clear()
-        self.assertEqual(result, Result(5))
+        (result, end) = AnyToken().keep('key').clear().parse(Cursor(["a"]))        
+        self.assertEqual(result, Result("a"))
 
+
+
+# AST classes for a limited arithmetic expression tree
+    
+class Arithmetic(Grammar):
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+    
+class Number(Arithmetic):
+    
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return "Number(" + str(self.value) + ")"
+        
+    @staticmethod
+    def fromResult(n, keeps):
+        return Number(n)
+            
+class Negate(Arithmetic):
+    
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return "Negate(" + self.value + ")"
+        
+    @staticmethod            
+    def fromResult(n, keeps):
+        return Negate(n)
+            
+class Add(Arithmetic):
+
+    def __init__(self, terms):
+        self.terms = terms
+
+    def __repr__(self):
+        return "Add(" + str(self.terms) + ")"
+
+    @staticmethod
+    def fromResult(terms, keeps):
+        return Add(keeps['left'].append(keeps['right']))
+        
     
 class GrammarTest(unittest.TestCase):
 
@@ -237,51 +285,18 @@ class GrammarTest(unittest.TestCase):
     
     def test_map(self):
         grammar = AnyToken()
-        (result, end) = grammar.parse(Cursor["5"])
-        self.assertEqual(result.map(lambda n, ks: n + "a"), Result("5a"))
+        (result, end) = grammar.map(lambda n, ks: n + "a").parse(Cursor(["5"]))
+        self.assertEqual(result, Result("5a"))
 
     def test_keep(self):
         grammar = AnyToken()
-        (result, end) = grammar.parse(Cursor["5"]).keep('n')
+        (result, end) = grammar.keep('n').parse(Cursor(["5"]))
         self.assertEqual(result, Result("5", { 'n': "5" }))
 
-    def clear(self):
+    def test_clear(self):
         grammar = AnyToken()
-        (result, end) = grammar.parse(Cursor["5"]).keep('n').clear()
+        (result, end) = grammar.keep('n').clear().parse(Cursor(["5"]))
         self.assertEqual(result, Result("5"))
-
-    # AST classes for a limited arithmetic expression tree
-    
-    class Arithmetic(Grammar):
-        def __eq_(self, other):
-            return self.__dict__ == other.__dict__
-        
-    class Number(Arithmetic):
-
-        def __init__(self, value):
-            self.value = value
-            
-        @staticmethod
-        def fromResult(n, keeps):
-            return Number(n)
-            
-    class Negate(Arithmetic):
-
-        def __init__(self, value):
-            self.value = value
-
-        @staticmethod            
-        def fromResult(n, keeps):
-            return Negate(n)
-            
-    class Add(Arithmetic):
-
-        def __init__(self, terms):
-            self.terms = terms
-
-        @staticmethod
-        def fromResult(terms, keeps):
-            return Add(ks['left'].append(ks['right']))
             
     # grammar for the limited arithmetic expression tree
             
@@ -295,52 +310,63 @@ class GrammarTest(unittest.TestCase):
     
     paren_expr = AllOf([Token("("), OneOrMore(expr).keep('expr')])
 
-    def to_cursor(string):
+    def to_cursor(self, string):
         tokens = re.split('([()+-])', string)
         non_empty = [token for token in tokens if token != ""]
         return Cursor(non_empty)
     
     def test_primitive(self):
-        self.assertEqual(number.parse(to_cursor("34")), Result(Number(34)))
+        (result, _) = GrammarTest.number.parse(self.to_cursor("34"))
+        self.assertEqual(result, Result(Number(34)))
 
     def test_prefix_discriminator_match(self):
-        self.assertEqual(negation.parse(to_cursor("-5")), Result(Negate(Number(5))))
+        (result, _) = GrammarTest.negation.parse(self.to_cursor("-5"))
+        self.assertEqual(result, Result(Negate(Number(5))))
 
     def test_prefix_discriminator_no_match(self):
-        self.assertFalse(negation.parse(to_cursor("5")))
+        (result, _) = GrammarTest.negation.parse(self.to_cursor("5"))
+        self.assertFalse(result)
         
     def test_infix_discriminator_match(self):
-        self.assertEqual(add.parse(to_cursor("5 + 6")), Result(Add(5, 6)))
+        (result, _) = GrammarTest.add.parse(self.to_cursor("5 + 6"))
+        self.assertEqual(result, Result(Add(5, 6)))
 
     def test_infix_discriminator_no_op_no_match(self):
-        self.assertFalse(add.parse(to_cursor("5 6")))
+        (result, _) = GrammarTest.add.parse(self.to_cursor("5 6"))
+        self.assertFalse(result)
 
     def test_infix_discriminator_no_right_term_no_match(self):
-        self.assertFalse(add.parse(to_cursor("5 +")))
+        (result, _) = GrammarTest.add.parse(self.to_cursor("5 +"))
+        self.assertFalse(result)
             
     def test_bracketed_expr(self):
-        self.assertEqual(paren_expr.parse(to_cursor("(5)")),
-                         Result(True, { 'expr': Number(5) }))
+        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("(5)"))
+        self.assertEqual(result, Result(True, { 'expr': Number(5) }))
 
     def test_bracketed_expr_no_right_bracket_no_match(self):
-        self.assertFalse(paren_expr.parse(to_cursor("(5")))
+        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("(5"))
+        self.assertFalse(result)
 
     def test_multiple_infix(self):
-        self.assertEqual(OneOrMore(add).parse(to_cursor("5 + 6 + 7")),
+        (result, _) = OneOrMore(GrammarTest.add).parse(self.to_cursor("5 + 6 + 7"))
+        self.assertEqual(result,
                          Result([Add(Number("5"), Add(Number("6"), Number("7")))]))
 
     def test_multiple_infix_no_last_term_no_match(self):
-        self.assertFalse(OneOrMore(add).parse(to_cursor("5 + 6 +")))
+        (result, _) = OneOrMore(GrammarTest.add).parse(self.to_cursor("5 + 6 +"))
+        self.assertFalse(result)
 
     def test_nested_bracket(self):
-        self.assertEqual(paren_expr.parse(to_cursor("5 + (6 + 7)")),
-                         Result(Add(Number(5), Add(Number(6), Number(7)))))
+        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("5 + (6 + 7)"))
+        self.assertEqual(result, Result([Add(Number(5), Add(Number(6), Number(7)))]))
 
     def test_nested_bracket_no_right_inner_bracket_no_match(self):
-        self.assertFalse(paren_expr.parse(to_cursor("5 + (6 + )")))        
+        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("5 + (6 + )"))
+        self.assertFalse(result)
     
     def test_complex_expression(self):
-        self.assertEqual(expr.parse(to_cursor("5 + (6 + -7 + (8 + 9) + 10) + -11")),
+        (result, _) = GrammarTest.expr.parse(self.to_cursor("5 + (6 + -7 + (8 + 9) + 10) + -11"))
+        self.assertEqual(result,
                          Add([Number(5),
                               Add([Number(6),
                                    Negate(Number(7)),

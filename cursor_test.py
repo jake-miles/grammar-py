@@ -3,7 +3,7 @@ from cursor import Cursor
 
 class CursorTest(unittest.TestCase):
 
-    def suite():
+     def suite():
         return unittest.TestSuite(map(loadTests, [
             CursorTestTraversal,
             CursorTestFind,
@@ -74,34 +74,6 @@ class CursorTestMapWhile(unittest.TestCase):
         (mappings, end) = start.map_while(lambda n: n < 4 and (n * -1))
         self.assertEqual(mappings, [-1, -2, -3])
         self.assertTrue(end.empty())
-
-        
-class CursorTestNextMap(unittest.TestCase):
-            
-    def test_false_on_empty(self):
-        start = Cursor([])
-        (match, end) = start.next_map(lambda n: n == 1 and n * -1)
-        self.assertFalse(match)
-        self.assertTrue(end.empty())
-                
-    def test_matches_first(self):
-        start = Cursor([1,2,3])
-        (match, end) = start.next_map(lambda n: n == 1 and n * -1)
-        self.assertEqual(match, -1)
-        self.assertEqual(end, start)
-        
-    def test_matches_midway(self):
-        start = Cursor([1,2,3])
-        (match, end) = start.next_map(lambda n: n == 2 and n * -1)
-        self.assertEqual(match, -2)
-        self.assertEqual(end, Cursor([1,2,3], 1))
-                             
-    def test_fails_to_match(self):
-        start = Cursor([1,2,3])
-        (match, end) = start.next_map(lambda n: n == 4 and n * -1)
-        self.assertFalse(match)
-        self.assertTrue(end.empty())
-
 
 
 # This contrived crawl example collects lists of cursor elements

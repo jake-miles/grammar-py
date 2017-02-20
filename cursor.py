@@ -50,22 +50,6 @@ class Cursor:
                 cursor = cursor.tail()
         return (mappings, cursor)
 
-    def next_map(self, map_fn):
-        """
-        Returns None if `map_fn` does not return a truthy value 
-        for any item in this cursor, or a pair if it does: 
-        the truthy value returned from `map_fn`, and the cursor at the matching item.
-
-        This is similar to python's built-in `next` except that it returns the
-        truthy mapped value, not the element that produced the truthy mapped value.
-        """
-        cursor = self
-        mapping = False
-        while cursor.not_empty() and not mapping:
-            mapping = map_fn(cursor.head())
-            if not mapping:
-                cursor = cursor.tail()
-        return (mapping, cursor)
     
     def crawl_while(self, crawl):
         """
