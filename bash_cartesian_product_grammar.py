@@ -20,26 +20,28 @@ open_curly = Token("{")
 close_curly = Token("}")
 comma = Token(",")
 
-parse_literal = OneOrMore(AnyToken()).map(toLit)    
+end_of_branch = OneOf([comma, close_curly])
+
+parse_literal = AnyToken().map(toLit).rename("parse_literal")
 
 # Lazy takes a thunk that produces the grammar, allowing forward references
 parse_branch = OneOf([Lazy(lambda: parse_and),
                       Lazy(lambda: parse_or),
-                      parse_literal])
+                      parse_literal]).rename("parse_branch")
 
 parse_or = AllOf([
     open_curly,
-    OneOrMore(AllOf([parse_branch.keep('branches'), comma])),
+    OneOrMore(AllOf([parse_branch.keep('branches'), comma])).rename("branches"),
     OneOf([
-        AllOf([parse_branch.keep('last_branch'), close_curly]),
+        AllOf([parse_branch.keep('last_branch'), close_curly]).rename("last_branch"),
         close_curly
     ])
-]).map(toOr)
+]).map(toOr).rename("parse_or")
 
-parse_term = OneOf([parse_or, parse_literal])
-parse_and = MoreThanOne(parse_term).map(toAnd)
+parse_term = OneOf([parse_or, parse_literal]).rename("parse_term")
+parse_and = MoreThanOne(parse_term).map(toAnd).rename("parse_and")
 
-parse_expr = OneOf([parse_and, parse_or, parse_literal])
+parse_expr = OneOf([parse_and, parse_or, parse_literal]).rename("parse_expr")
 
 
     

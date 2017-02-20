@@ -15,8 +15,8 @@ class GrammarTest(unittest.TestCase):
             MoreThanOneTest,
             AllOfTest,
             OneOfTest,
-            MapResultTest,
-            KeepAsTest,
+            MapTest,
+            KeepTest,
             ClearTest,
             GrammarTest
         ]))
@@ -298,81 +298,5 @@ class GrammarTest(unittest.TestCase):
         (result, end) = grammar.keep('n').clear().parse(Cursor(["5"]))
         self.assertEqual(result, Result("5"))
             
-    # grammar for the limited arithmetic expression tree
-            
-    number = AnyToken().map(lambda n,_: int(n)).map(Number.fromResult)
-
-    negation = AllOf([Token("-"), number.keep('n')]).map(Negate.fromResult)
-
-    expr = OneOf([number, negation, Lazy(lambda: add)])
-    
-    add = AllOf([expr.keep('left'), Token("+"), expr.keep('right')]).map(Add.fromResult)
-    
-    paren_expr = AllOf([Token("("), OneOrMore(expr).keep('expr')])
-
-    def to_cursor(self, string):
-        tokens = re.split('([()+-])', string)
-        non_empty = [token for token in tokens if token != ""]
-        return Cursor(non_empty)
-    
-    def test_primitive(self):
-        (result, _) = GrammarTest.number.parse(self.to_cursor("34"))
-        self.assertEqual(result, Result(Number(34)))
-
-    def test_prefix_discriminator_match(self):
-        (result, _) = GrammarTest.negation.parse(self.to_cursor("-5"))
-        self.assertEqual(result, Result(Negate(Number(5))))
-
-    def test_prefix_discriminator_no_match(self):
-        (result, _) = GrammarTest.negation.parse(self.to_cursor("5"))
-        self.assertFalse(result)
-        
-    def test_infix_discriminator_match(self):
-        (result, _) = GrammarTest.add.parse(self.to_cursor("5 + 6"))
-        self.assertEqual(result, Result(Add(5, 6)))
-
-    def test_infix_discriminator_no_op_no_match(self):
-        (result, _) = GrammarTest.add.parse(self.to_cursor("5 6"))
-        self.assertFalse(result)
-
-    def test_infix_discriminator_no_right_term_no_match(self):
-        (result, _) = GrammarTest.add.parse(self.to_cursor("5 +"))
-        self.assertFalse(result)
-            
-    def test_bracketed_expr(self):
-        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("(5)"))
-        self.assertEqual(result, Result(True, { 'expr': Number(5) }))
-
-    def test_bracketed_expr_no_right_bracket_no_match(self):
-        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("(5"))
-        self.assertFalse(result)
-
-    def test_multiple_infix(self):
-        (result, _) = OneOrMore(GrammarTest.add).parse(self.to_cursor("5 + 6 + 7"))
-        self.assertEqual(result,
-                         Result([Add(Number("5"), Add(Number("6"), Number("7")))]))
-
-    def test_multiple_infix_no_last_term_no_match(self):
-        (result, _) = OneOrMore(GrammarTest.add).parse(self.to_cursor("5 + 6 +"))
-        self.assertFalse(result)
-
-    def test_nested_bracket(self):
-        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("5 + (6 + 7)"))
-        self.assertEqual(result, Result([Add(Number(5), Add(Number(6), Number(7)))]))
-
-    def test_nested_bracket_no_right_inner_bracket_no_match(self):
-        (result, _) = GrammarTest.paren_expr.parse(self.to_cursor("5 + (6 + )"))
-        self.assertFalse(result)
-    
-    def test_complex_expression(self):
-        (result, _) = GrammarTest.expr.parse(self.to_cursor("5 + (6 + -7 + (8 + 9) + 10) + -11"))
-        self.assertEqual(result,
-                         Add([Number(5),
-                              Add([Number(6),
-                                   Negate(Number(7)),
-                                   Add([Number(8), Number(9)]),
-                                   Number(10)]),
-                              Negate(Number(11))]))
-                                 
-    
-
+    # TODO: test with a simple arithmetic grammar.
+    # for now, this is tested using the bash catesian product grammar

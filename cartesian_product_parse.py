@@ -1,6 +1,7 @@
 import re
 from cursor import Cursor
 from bash_cartesian_product_grammar import parse_expr
+from cartesian_product_calc import Empty
 
 def parse_bash_cp(string):
     """
@@ -9,8 +10,8 @@ def parse_bash_cp(string):
     defined in "cartesian_product_calc.py"
     """
     cursor = create_cursor(string)
-    (result, _) = parse_expr().parse(cursor)
-    return result.value or And([])
+    (result, _) = parse_expr.parse(cursor)
+    return (result and result.value) or Empty()
 
 
 def create_cursor(string):

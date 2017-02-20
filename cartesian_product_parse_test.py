@@ -1,36 +1,37 @@
 import unittest
-from cartesian_product_calc import And, Or, Lit
+from cartesian_product_calc import And, Or, Lit, Empty
 from cartesian_product_parse import *
+from grammar import Grammar
 
 class CartesianProductParseTest(unittest.TestCase):
-        
+
+    Grammar.trace = True
+    
     def test_create_cursor_empty_string(self):
         self.assertEqual(create_cursor(""), Cursor([]))
 
     def test_create_cursor_non_empty_string(self):
         self.assertEqual(create_cursor("abc{def,ghi}jk"), Cursor(["abc", "{", "def", ",", "ghi", "}", "jk"]))    
 
-    def test_parse_nothing_empty_cursor(self):
-        self.assertEqual(parse_nothing(Cursor([])), (None, Cursor([])))
-        
-    def test_parse_nothing_non_empty_cursor(self):
-        self.assertEqual(parse_nothing(Cursor([1])), None)
-
     def test_empty_string(self):
         expr = parse_bash_cp("")
-        self.assertEqual(expr, And([]))
+        self.assertEqual(expr, Empty())
 
-    def test_Lit_one_char(self):
-        expr = parse_bash_cp("a")
-        self.assertEqual(expr, Lit("a"))
-
-    def test_Lit_multiple_chars(self):
+    def test_Lit(self):
         expr = parse_bash_cp("abc")
         self.assertEqual(expr, Lit("abc"))
 
     def test_Or(self):
         expr = parse_bash_cp("{a,b,c}")
         self.assertEqual(expr, Or([Lit("a"),Lit("b"),Lit("c")]))
+
+    def test_Lit_Or(self):
+        expr = parse_bash_cp("abc{d,e,f}")
+        self.assertEqual(expr, And([Lit("abc"), Or([Lit("d"),Lit("e"),Lit("f")])]))
+
+    def test_Or_Lit(self):
+        expr = parse_bash_cp("{d,e,f}ghi")
+        self.assertEqual(expr, And([Or([Lit("d"),Lit("e"),Lit("f")]), Lit("ghi")]))        
 
     def test_Lit_Or_Lit(self):
         expr = parse_bash_cp("abc{d,e,f}ghi")
