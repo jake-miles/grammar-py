@@ -42,9 +42,6 @@ comma = Token(",")
 
 parse_literal = OneOrMore(AnyToken()).map(toLit)
 
-parse_term = OneOf([parse_or, parse_literal])
-parse_and = MoreThanOne(parse_term).map(toAnd)
-
 parse_branch = OneOf([parse_and, parse_or, parse_literal])
 parse_or = AllOf([
     open_curly,
@@ -54,6 +51,9 @@ parse_or = AllOf([
         close_curly
     ])
 ]).map(toOr)
+
+parse_term = OneOf([parse_or, parse_literal])
+parse_and = MoreThanOne(parse_term).map(toAnd)
 
 parse_expr = OneOf([parse_and, parse_or, parse_literal])
 

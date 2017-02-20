@@ -104,7 +104,7 @@ class AllOf(Grammar):
     """
 
     def __init__(self, grammars):
-        self.grammars = grammers
+        self.grammars = grammars
 
     def parse_non_empty(self, start):
         grammars = Cursor(self.grammars)
