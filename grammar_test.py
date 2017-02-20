@@ -1,10 +1,12 @@
 import unittest
 from grammar import *
+from cursor import Cursor
 
 class GrammarTest(unittest.TestCase):
 
     def suite(self):
         return unittest.TestSuite(map(loadTests, [
+            LazyTest,
             ResultTest,
             AnyTokenTest,
             TokenTest,
@@ -17,29 +19,24 @@ class GrammarTest(unittest.TestCase):
             ClearTest,
             GrammarTest
         ]))
-
-    
+        
 class ResultTest(unittest.TestCase):
 
     def test_merge_all_merges_values_into_list(self):
         result1 = Result("result1")
         result2 = Result("result2")
         result3 = Result("result3")
-        merged = Result.merge_all(result1, result2)
-        self.assertEqual(merged, Result([result1, result2, result3]))
+        merged = Result.merge_all([result1, result2, result3])
+        self.assertEqual(merged, Result(["result1", "result2", "result3"]))
 
     def test_merge_all_merges_keeps(self):
         result1 = Result("result1", { 'a': 1 })
         result2 = Result("result2", { 'b': 2 })
         result3 = Result("result3", { 'c': 3 })
-        merged = Result.merge_all(result1, result2)
-        self.assertEqual(merged, Result([result1, result2, result3], { 'a': 1, 'b': 2, 'c': 3 }))
+        merged = Result.merge_all([result1, result2, result3])
+        self.assertEqual(merged, Result(["result1", "result2", "result3"], { 'a': 1, 'b': 2, 'c': 3 }))
 
 
-# TODO: add assertions for cursor position
-# TODO: add assetions for Result's value for each grammar type
-
-        
 class AnyTokenTest(unittest.TestCase):    
     def test_match_token(self):
         grammar = AnyToken() 
@@ -62,17 +59,53 @@ class TokenTest(unittest.TestCase):
         grammar = Token("goodbye")
         input = Cursor(["hello"])
         (result, end) = grammar.parse(input)                
-        self.assertFalse(result.value)
-        self.assertTrue(end.empty())
+        self.assertFalse(result)
+        self.assertEqual(end, input)
 
         
+class AllOfTest(unittest.TestCase):
+
+    grammar = AllOf([Token("hello"), Token("goodbye"), Token("sunshine")])
+    
+    def test_empty_input_no_match(self):
+        input = Cursor([])
+        (result, end) = AllOfTest.grammar.parse(input)
+        self.assertFalse(result)    
+        self.assertEqual(end, input)
+        
+    def test_no_match_input_shorter_than_grammar(self):
+        input = Cursor(["hello", "goodbye"])
+        (result, end) = AllOfTest.grammar.parse(input)
+        self.assertFalse(result)    
+        self.assertEqual(end, input)
+        
+    def test_one_matched_token_no_match(self):
+        input = Cursor(["hello"])
+        (result, end) = AllOfTest.grammar.parse(input)        
+        self.assertFalse(result)
+        self.assertEqual(end, input)
+        
+    def test_two_matched_tokens_no_match(self):
+        input = Cursor(["hello", "goodbye", "rain", "clouds"])
+        (result, end) = AllOfTest.grammar.parse(input)        
+        self.assertFalse(result)
+        self.assertEqual(end, input)
+        
+    def test_all_match(self):
+        input = Cursor(["hello", "goodbye", "sunshine", "rain", "clouds"])
+        (result, end) = AllOfTest.grammar.parse(input)
+        # Result.value is just True for this one - to retain values use `keep`
+        self.assertTrue(result.value)
+        self.assertEqual(end, input.at(3))
+
+                
 class OneOrMoreTest(unittest.TestCase):
 
     def test_zero_no_match(self):
         grammar = OneOrMore(Token("sunshine"))        
         input = Cursor(["hello", "goodbye", "sunshine"])
         (result, end) = grammar.parse(input)
-        self.assertFalse(result.value)
+        self.assertFalse(result)
         self.assertEqual(end, input)
         
     def test_one_match(self):
@@ -96,7 +129,7 @@ class OneOrMoreTest(unittest.TestCase):
         self.assertEqual(result.value, ["hello", "hello", "hello"])
         self.assertEqual(end, input.at(3))
 
-        
+                
 class MoreThanOneTest(unittest.TestCase):
 
     def test_zero_no_match(self):
@@ -125,43 +158,6 @@ class MoreThanOneTest(unittest.TestCase):
         input = Cursor(["hello", "hello", "hello", "goodbye", "sunshine"])
         (result, end) = grammar.parse(input)
         self.assertEqual(result.value, ["hello", "hello", "hello"])
-        self.assertEqual(end, input.at(3))
-
-        
-class AllOfTest(unittest.TestCase):
-
-    def __init__(self):
-        self.grammar = AllOf([Token("hello"), Token("goodbye"), Token("sunshine")])
-    
-    def test_empty_input_no_match(self):
-        input = Cursor([])
-        result = self.grammar.parse(input)
-        self.assertFalse(result.value)    
-        self.assertEqual(end, input)
-        
-    def test_no_match_input_shorter_than_grammar(self):
-        input = Cursor(["hello", "goodbye"])
-        result = self.grammar.parse(input)
-        self.assertFalse(result.value)    
-        self.assertEqual(end, input)
-        
-    def test_one_matched_token_no_match(self):
-        input = Cursor(["hello"])
-        result = self.grammar.parse(input)        
-        self.assertFalse(result.value)
-        self.assertEqual(end, input)
-        
-    def test_two_matched_tokens_no_match(self):
-        input = Cursor(["hello", "goodbye", "rain", "clouds"])
-        result = self.grammar.parse(input)        
-        self.assertFalse(result.value)
-        self.assertEqual(end, input)
-        
-    def test_all_match(self):
-        input = Cursor(["hello", "goodbye", "sunshine", "rain", "clouds"])
-        result = self.grammar.parse(input)
-        # Result.value is just True for this one - to retain values use `keep`
-        self.assertTrue(result.value)
         self.assertEqual(end, input.at(3))
 
         
@@ -194,7 +190,17 @@ class OneOfTest(unittest.TestCase):
         self.assertTrue(result.value, "rain")
         self.assertEqual(end, input.at(1))
 
-        
+
+class LazyTest(unittest.TestCase):
+    def test_allows_forward_reference(self):
+        a = Token("a")        
+        b = OneOf([a, Lazy(lambda: c)])
+        c = MoreThanOne(a)
+        (result, cursor) = a.parse(Cursor(["a", "a"]))
+        self.assertEqual(result, Result(["a", "a"]))
+        self.assertTrue(cursor.empty())
+
+                
 class KeepTest(unittest.TestCase):
 
     def test_adds_key(self):
@@ -283,7 +289,7 @@ class GrammarTest(unittest.TestCase):
 
     negation = AllOf([Token("-"), number.keep('n')]).map(Negate.fromResult)
 
-    expr = OneOf([number, negation, add])
+    expr = OneOf([number, negation, Lazy(lambda: add)])
     
     add = AllOf([expr.keep('left'), Token("+"), expr.keep('right')]).map(Add.fromResult)
     

@@ -1,3 +1,8 @@
+import abc
+from cursor import Cursor
+
+# A small parser combinator library.
+
 class Grammar:
 
     def parse(self, cursor):
@@ -15,46 +20,58 @@ class Grammar:
 
     def clear(self):
         return Clear(self)
-    
+
+    @abc.abstractmethod
     def parse_non_empty(self, cursor):
         """
-        Returns None if this grammar can't be parsed completely beginning
-        at `cursor`.
-        
-        If this grammar can be parsed completely beginning at `cursor`,
-        this returns a pair containing:
-        1) A `Result`, defined below.
-        2) the cursor where it ended up after matching this grammar.
+        Returns a pair:
+        1) A `Result`, defined below, or falsy if this Grammar doesn't match the input.
+        2) The cursor where it ended up after matching this grammar.
         """
-        raise Exception("Call to abstract method `Grammar.parse`.")
 
  
 class Result:
+
     def __init__(self, value, keeps = None):
         """
         `value` is the specific result of the Grammar that matched the input.
         `keeps` is a dictionary of values kept during parsing using `keep`.
         """
         self.value = value
-        self.keeps = keeps or dict()
+        self.keeps = keeps or dict()        
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __repr__(self):
+        return "Result(" + str(self.value) + ", " + str(self.keeps) + ")"
+        
+    @staticmethod
     def merge_all(results):
-        all_values = map(lambda result: result.value, results)
+        all_values = map(lambda r: r.value, results)
         all_keeps = {}
         for result in results:
             all_keeps.update(result.keeps)
-            return Result(all_values, all_keeps)
+        return Result(all_values, all_keeps)
         
 
 ########################################################################
 # Grammars that define syntactic structure, i.e. the recursive descent
 
+class Lazy(Grammar):
+
+    def __init__(self, thunk):
+        self.thunk = thunk
+
+    def parse(cursor):
+        return self.thunk().parse(cursor)
+
     
 class AnyToken(Grammar):
     "Matches any single token"
 
-    def parse_non_empty(cursor):
-        return (Result(cursor.head(), cursor))
+    def parse_non_empty(self, cursor):
+        return (Result(cursor.head()), cursor.tail())
 
 
 class Token(Grammar):
@@ -64,9 +81,45 @@ class Token(Grammar):
         self.value = value
 
     def parse_non_empty(self, start):
-        return (start.head() == self.value and Result(start.head()), end)
+        if start.head() == self.value:
+            return (Result(start.head()), start.tail())
+        else:
+            return (False, start)
 
-    
+        
+class AllOf(Grammar):
+    """
+    Matches an entire list of grammars in sequence.
+    `Result.value` is True if it's a match
+    To retain values from the individual grammars, use `keep`.
+    """
+
+    def __init__(self, grammars):
+        self.grammars = grammars
+
+    def parse_non_empty(self, start):
+
+        # a hack to let us modify a closure variable
+        class grammars: pass
+        grammars.val = Cursor(self.grammars)
+
+        def parse_next(cursor):
+            if grammars.val.empty():
+                return (None, cursor)
+            else:
+                (result, end) = grammars.val.head().parse(cursor)
+                if result:
+                    grammars.val = grammars.val.tail()
+                return (result, end)
+                
+        (results, end) = start.crawl_while(parse_next)
+
+        if not (results and grammars.val.empty()):            
+            return (None, start)
+        else:
+            return (Result(True), end)
+
+
 class OneOrMore(Grammar):
     """
     Matches one or more subsequent matches.  
@@ -78,10 +131,14 @@ class OneOrMore(Grammar):
         self.grammar = grammar
 
     def parse_non_empty(self, start):
-        (results, end) = start.crawl_while(lambda token: self.grammar.parse(token))
-        return (results and Result.merge_all(results), end)
+        (results, end) = start.crawl_while(self.grammar.parse)
+        if results:
+            cursor = end
+        else:
+            cursor = start
+        return (results and Result.merge_all(results), cursor)
     
-    
+
 class MoreThanOne(Grammar):
     """
     Matches at least two in a row of a grammar.
@@ -94,29 +151,6 @@ class MoreThanOne(Grammar):
 
     def parse_non_empty(self, start):
         return AllOf([self.grammar, OneOrMore(self.grammar)]).parse(start)
-
-    
-class AllOf(Grammar):
-    """
-    Matches an entire list of grammars in sequence.
-    `Result.value` is True if it's a match,
-    and `Result.keeps` is a result of merging the Results' `keeps`.
-    """
-
-    def __init__(self, grammars):
-        self.grammars = grammars
-
-    def parse_non_empty(self, start):
-        grammars = Cursor(self.grammars)
-
-        def parse_next(cursor):
-            result = grammars.notEmpty() and grammars.head().parse(cursor)
-            if grammars.notEmpty():
-                grammars = grammars.tail()
-            return result
-                
-        (results, end) = start.crawl_while(parse_next)
-        return (results and Result.merge_all(results), end)
 
 
 class OneOf(Grammar):
