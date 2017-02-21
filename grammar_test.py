@@ -39,13 +39,14 @@ class ResultTest(unittest.TestCase):
 
 
 class AnyTokenTest(unittest.TestCase):    
+
     def test_match_token(self):
         grammar = AnyToken() 
         input = Cursor(["hello"])
         (result, end) = grammar.parse(input)
         self.assertEqual(result.value, "hello")
         self.assertTrue(end.empty())                 
-
+        
         
 class TokenTest(unittest.TestCase):
 
@@ -189,6 +190,23 @@ class OneOfTest(unittest.TestCase):
         (result, end) = OneOfTest.grammar.parse(input)
         self.assertEqual(result.value, "sunshine")
         self.assertEqual(end, input.at(1))
+
+
+class UnlessTest(unittest.TestCase):
+
+    def test_prevents_match(self):
+        grammar = Unless(Token("*"), AnyToken())
+        input = Cursor(["*"])
+        (result, end) = grammar.parse(input)
+        self.assertFalse(result)
+        self.assertEqual(end, input)
+
+    def test_allows_match_if_unless_does_not_match(self):
+        grammar = Unless(Token("}"), AnyToken())
+        input = Cursor(["*"])
+        (result, end) = grammar.parse(input)
+        self.assertEqual(result.value, "*")
+        self.assertTrue(end.empty())
 
 
 class LazyTest(unittest.TestCase):

@@ -184,23 +184,32 @@ class OneOrMore(Grammar):
     Results' values, and `Result.keeps` is a result of merging their `keeps`.
     """
     
-    def __init__(self, grammar, name = None):
+    def __init__(self, grammar, stop, name = None):
+        """
+        `stop` is a grammar to check before checking for another repeat of `grammar`.
+        If `stop` matches, return no match with the original cursor.
+        """
         Grammar.__init__(self, name)        
         self.grammar = grammar
+        self.stop = stop
 
     def trace_repr(self):
-        return "OneOrMore(" + str(self.grammar) + ")"
+        return "OneOrMore(" + str(self.grammar) + ", stop=" + str(stop) + ")"
 
     def rename(self, name):
         return OneOrMore(self.grammar, name)
     
     def parse_non_empty(self, start):
-        (results, end) = start.crawl_while(self.grammar.parse)
+        (results, end) = start.crawl_while(self.parse_next)
         if results:
             cursor = end
         else:
             cursor = start
         return (results and Result.merge_all(results), cursor)
+
+    def parse_next(self, cursor):
+        return (not (self.stop and self.stop.parse(cursor))) or self.grammar.parse(cursor)
+            
     
 
 class MoreThanOne(Grammar):
@@ -255,6 +264,31 @@ class OneOf(Grammar):
                 grammars = grammars.tail()
         return (result, end)
 
+    
+class Unless(Grammar):
+    """
+    Takes an `unless` grammar and a main `grammar`.  Matches the cursor
+    only if `unless` does not match and `grammar` does.
+    """
+    def __init__(self, unless, grammar, name = None):
+        Grammar.__init__(self, name)
+        self.grammar = grammar
+        self.unless = unless
+
+    def trace_repr(self):
+        return "Unless(unless=" + str(self.unless) + ", grammar=" + str(self.grammar) + ")"
+
+    def rename(self, name):
+        return Unless(self.unless, self.grammar, name)
+
+    def parse_non_empty(self, start):
+        (unless, _) = self.unless.parse(start)
+        if unless:
+            return (False, start)
+        else:
+            return self.grammar.parse(start)
+
+    
 
 #############################################################################
 # Grammars that transform a matched Result as it returns back up the stack.
