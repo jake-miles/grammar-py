@@ -1,9 +1,13 @@
 import abc
 from cursor import Cursor
+from itertools import repeat
 
 # A small parser combinator library.
 
 # TODO: try replacing the classes with functions.  a lot less code.
+
+def trace(level, *args):
+    print("".join(repeat("-", level)) + ", ".join(map(str, args)))
 
 class Grammar:
 
@@ -15,20 +19,20 @@ class Grammar:
     def __repr__(self):
         return self.name or self.trace_repr()
 
-    def parse(self, cursor):
+    def parse(self, cursor, level = 0):
         if cursor.empty():
             return (None, cursor)
         else:
 
             if Grammar.trace:
-                print(self, cursor)
+                trace(level, (self, cursor))
 
-            (result, end) = self.parse_non_empty(cursor)
+            (result, end) = self.parse_non_empty(cursor, level)
 
             if result and Grammar.trace:
-                print("*** match:", self)
-            else:
-                print("--- no-match:", self)
+                trace(level, "*** match:", self)
+            elif Grammar.trace:
+                trace(level, "--- no-match:", self)
 
             return (result, end)
 
@@ -52,7 +56,7 @@ class Grammar:
         """
     
     @abc.abstractmethod
-    def parse_non_empty(self, cursor):
+    def parse_non_empty(self, cursor, level):
         """
         Returns a pair:
         1) A `Result`, defined below, or falsy if this Grammar doesn't match the input.
@@ -94,8 +98,11 @@ class Lazy(Grammar):
         Grammar.__init__(self, name)        
         self.thunk = thunk
 
-    def parse(self, cursor):
-        return self.thunk().parse(cursor)
+    def trace_repr(self):
+        return "Lazy wrapper"
+
+    def parse(self, cursor, level):
+        return self.thunk().parse(cursor, level + 1)
 
     def rename(self, name):
         return Lazy(self.thunk, name)
@@ -113,7 +120,7 @@ class AnyToken(Grammar):
     def rename(self, name):
         return AnyToken(self.name)
     
-    def parse_non_empty(self, cursor):
+    def parse_non_empty(self, cursor, level):
         return (Result(cursor.head()), cursor.tail())
 
 
@@ -130,7 +137,7 @@ class Token(Grammar):
     def rename(self, name):
         return Token(self.value, name)
     
-    def parse_non_empty(self, start):
+    def parse_non_empty(self, start, level):
         if start.head() == self.value:
             return (Result(start.head()), start.tail())
         else:
@@ -154,7 +161,7 @@ class AllOf(Grammar):
     def rename(self, name):
         return AllOf(self.grammars, name)
 
-    def parse_non_empty(self, start):
+    def parse_non_empty(self, start, level):
 
         # a hack to let us modify a closure variable
         class grammars: pass
@@ -164,7 +171,7 @@ class AllOf(Grammar):
             if grammars.val.empty():
                 return (None, cursor)
             else:
-                (result, end) = grammars.val.head().parse(cursor)
+                (result, end) = grammars.val.head().parse(cursor, level + 1)
                 if result:
                     grammars.val = grammars.val.tail()
                 return (result, end)
@@ -184,62 +191,28 @@ class OneOrMore(Grammar):
     Results' values, and `Result.keeps` is a result of merging their `keeps`.
     """
     
-    def __init__(self, grammar, stop, name = None):
+    def __init__(self, grammar, name = None):
         """
         `stop` is a grammar to check before checking for another repeat of `grammar`.
         If `stop` matches, return no match with the original cursor.
         """
         Grammar.__init__(self, name)        
         self.grammar = grammar
-        self.stop = stop
 
     def trace_repr(self):
-        return "OneOrMore(" + str(self.grammar) + ", stop=" + str(stop) + ")"
+        return "OneOrMore(" + str(self.grammar) + ")"
 
     def rename(self, name):
         return OneOrMore(self.grammar, name)
     
-    def parse_non_empty(self, start):
-        (results, end) = start.crawl_while(self.parse_next)
+    def parse_non_empty(self, start, level):
+        (results, end) = start.crawl_while(lambda c: self.grammar.parse(c, level + 1))
         if results:
             cursor = end
         else:
             cursor = start
         return (results and Result.merge_all(results), cursor)
-
-    def parse_next(self, cursor):
-        return (not (self.stop and self.stop.parse(cursor))) or self.grammar.parse(cursor)
-            
     
-
-class MoreThanOne(Grammar):
-    """
-    Matches at least two in a row of a grammar.
-    `Result.value` is a list of the collected
-    Results' values, and `Result.keeps` is a result of merging their `keeps`.
-    """
-
-    def __init__(self, grammar, name = None):
-        Grammar.__init__(self, name)        
-        self.grammar = grammar
-
-    def trace_repr(self):
-        return "MoreThanOne(" + str(self.grammar) + ")"
-
-    def rename(self, name):
-        return MoreThanOne(self.grammar, name)
-    
-    def parse_non_empty(self, start):
-
-        def flatten(results, keeps):
-            first = results[0]
-            rest = results[1]
-            flattened = [first]
-            flattened.extend(rest)
-            return flattened
-
-        return AllOf([self.grammar, OneOrMore(self.grammar)]).map(flatten).parse(start)
-
 
 class OneOf(Grammar):
     "A disjunction: takes a number of grammars and finds the first one that matches."
@@ -254,12 +227,12 @@ class OneOf(Grammar):
     def rename(self, name):
         return OneOf(self.grammars, name)
         
-    def parse_non_empty(self, start):
+    def parse_non_empty(self, start, level):
         grammars = Cursor(self.grammars)
         result = False
         end = start
         while grammars.not_empty() and not result:
-            (result, end) = grammars.head().parse(start)
+            (result, end) = grammars.head().parse(start, level + 1)
             if not result:
                 grammars = grammars.tail()
         return (result, end)
@@ -281,12 +254,12 @@ class Unless(Grammar):
     def rename(self, name):
         return Unless(self.unless, self.grammar, name)
 
-    def parse_non_empty(self, start):
-        (unless, _) = self.unless.parse(start)
+    def parse_non_empty(self, start, level):
+        (unless, _) = self.unless.parse(start, level + 1)
         if unless:
             return (False, start)
         else:
-            return self.grammar.parse(start)
+            return self.grammar.parse(start, level + 1)
 
     
 
@@ -306,8 +279,8 @@ class MapResult(Grammar):
     def rename(self, name):
         return MapResult(self.f, self.grammar.rename(name), "Map of " + name)
 
-    def parse_non_empty(self, start):
-        (result, end) = self.grammar.parse(start)
+    def parse_non_empty(self, start, level):
+        (result, end) = self.grammar.parse(start, level + 1)
         return (result and self.f(result), end)
 
     
@@ -330,8 +303,8 @@ class Map(Grammar):
 
     # TODO: impl. this as a subclass of MapResult.  this caused a bug before.
     
-    def parse_non_empty(self, start):
-        (result, end) = self.grammar.parse(start)
+    def parse_non_empty(self, start, level):
+        (result, end) = self.grammar.parse(start, level + 1)
         new_result = (result and result.value and
                       Result(self.f(result.value, result.keeps), result.keeps))
         return (new_result, end)

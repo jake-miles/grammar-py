@@ -12,7 +12,6 @@ class GrammarTest(unittest.TestCase):
             AnyTokenTest,
             TokenTest,
             OneOrMoreTest,
-            MoreThanOneTest,
             AllOfTest,
             OneOfTest,
             MapTest,
@@ -127,37 +126,6 @@ class OneOrMoreTest(unittest.TestCase):
     def test_more_than_two_match(self):
         grammar = OneOrMore(Token("hello"))
         input = Cursor(["hello", "hello", "hello", "goodbye"])        
-        (result, end) = grammar.parse(input)
-        self.assertEqual(result.value, ["hello", "hello", "hello"])
-        self.assertEqual(end, input.at(3))
-
-                
-class MoreThanOneTest(unittest.TestCase):
-
-    def test_zero_no_match(self):
-        grammar = MoreThanOne(Token("sunshine"))
-        input = Cursor(["hello", "goodbye", "sunshine"])
-        (result, end) = grammar.parse(input)
-        self.assertFalse(result)
-        self.assertEqual(end, input)
-        
-    def test_one_no_match(self):
-        grammar = MoreThanOne(Token("hello"))
-        input = Cursor(["hello", "goodbye", "sunshine"])
-        (result, end) = grammar.parse(input)
-        self.assertFalse(result)
-        self.assertEqual(end, input)
-        
-    def test_two_match(self):
-        grammar = MoreThanOne(Token("hello"))
-        input = Cursor(["hello", "hello", "goodbye", "sunshine"])
-        (result, end) = grammar.parse(input)
-        self.assertEqual(result.value, ["hello", "hello"])
-        self.assertEqual(end, input.at(2))
-        
-    def test_more_than_two_match(self):
-        grammar = MoreThanOne(Token("hello"))
-        input = Cursor(["hello", "hello", "hello", "goodbye", "sunshine"])
         (result, end) = grammar.parse(input)
         self.assertEqual(result.value, ["hello", "hello", "hello"])
         self.assertEqual(end, input.at(3))

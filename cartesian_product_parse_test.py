@@ -23,6 +23,7 @@ class CartesianProductParseTest(unittest.TestCase):
 
     def test_Or(self):
         expr = parse_bash_cp("{a,b,c}")
+        print("expr", expr)
         self.assertEqual(expr, Or([Lit("a"),Lit("b"),Lit("c")]))
 
     def test_Lit_Or(self):
@@ -57,7 +58,7 @@ class CartesianProductParseTest(unittest.TestCase):
                                     Or([Lit("de"), Empty()])]))
         
     def test_Or_all_empty(self):
-        expr = parse_bash_cp("abc{,,}de}")
+        expr = parse_bash_cp("abc{,,}de")
         self.assertEqual(expr, And([Lit("abc"),
                                     Or([Empty(), Empty(), Empty()]),
                                     Lit("de")]))
@@ -75,8 +76,36 @@ class CartesianProductParseTest(unittest.TestCase):
         self.assertEqual(expr, And([Or([Or([Lit("b"), Lit("c")]),
                                         Lit("d")]),
                                     Lit("ef")]))
-    
-    # when curlies don't contain a comma, they don't denote a Or but a literal that includes the curlies
+
+    def test_example_1(self):
+        expr = parse_bash_cp("a{b,c}d{e,f,g}hi")
+        self.assertEqual(expr, And([
+            Lit("a"),
+            Or([Lit("b"), Lit("c")]),
+            Lit("d"),
+            Or([Lit("e"), Lit("f"), Lit("g")]),
+            Lit("hi")
+        ]))
+
+    def test_example_2(self):
+        expr = parse_bash_cp("a{b,c{d,e,f}g,h}ij{k,l}")
+        self.assertEqual(expr, And([
+            Lit("a"),
+            Or([Lit("b"),
+                And([Lit("c"),
+                     Or([Lit("d"), Lit("e"), Lit("f")]),
+                     Lit("g")]),
+                Lit("h")
+            ]),
+            Lit("ij"),
+            Or([Lit("k"), Lit("l")])
+        ]))
+
+        
+class CartesianProductParseTestLiteralCurlies(unittest.TestCase):
+        
+    # when curlies don't contain a comma,
+    # they don't denote a Or but a literal that includes the curlies
 
     def test_literal_open_curly(self):
         expr = parse_bash_cp("{")
