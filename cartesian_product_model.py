@@ -1,3 +1,6 @@
+import abc
+from cursor import Cursor
+
 """
 These classes define the syntax tree produced by the parser, 
 which is also the data model for calculating the cartesian product - 
@@ -18,23 +21,10 @@ class Expression:
     cartesian product of strings.
     """
 
-    # produces the list of strings that is this expression's cartesian product
+    @abc.abstractmethod
     def cartesian_product(self):
-        raise Exception("Call to abstract method Expression.product")
-
-    # TODO: could take a function to yield to to define the cartesian product
-    # multiplication step.
-    
-    """ 
-    Returns the result of appending `other` to this expression,
-    however "append" is defined for this type,
-    or None if it can't be appended.  The intention here is to let the
-    parser simplify the resulting syntax tree, to combine adjacent expressions
-    that can be combined.
-    """
-    def append(self, other):
-        raise Exception("Call to abstract method Expression.append")
-
+        "Produces the list of strings that is this expression's cartesian product"
+        
     # comparing two Expressions is a deep-equals.
     # http://stackoverflow.com/questions/22332729/how-to-do-a-deepequals-on-a-object-in-python
     def __eq__(self, other):
@@ -51,12 +41,9 @@ class Empty(Expression):
         return "Empty"
         
     def cartesian_product(self):
-        return []
+        return None
 
-    def append(self, other):
-        return other
 
-    
 class Lit(Expression):
     "Represents a literal string, whose cartesian product is that string"
     
@@ -65,13 +52,10 @@ class Lit(Expression):
 
     def __repr__(self):
         return "Lit({0})".format(",".join(self.value))
-        
+
     def cartesian_product(self):
         return [self.value]
 
-    # consolidate adjacent Lit's into one 
-    def append(self, other):
-        return other is Lit and Lit(self.value + other.value)
 
 class Or(Expression):
     """
@@ -91,23 +75,19 @@ class Or(Expression):
 
     """
     
-    def __init__(self, variations):
-        self.variations = variations
+    def __init__(self, branches):
+        self.branches = branches
 
     def __repr__(self):
-        return "Or({0})".format(",".join([str(s) for s in self.variations]))
+        return "Or({0})".format(",".join([str(s) for s in self.branches]))
 
-    # Or's don't concatenate.  two adjacent Ors remain separate and multiply togethere.
-    def append(self, other):
-        return None
-    
-    # flattens the results of evaluating the disjunction's branches
     def cartesian_product(self):
-        all = []
-        for v in self.variations:
-            all.extend(v.cartesian_product())
-        return all
+        acc = []
+        for branch in self.branches:
+            acc.extend(branch.cartesian_product())
+        return acc
 
+    
 class And(Expression):
     """
     Represents the conjunction of expressions, which multiply in
@@ -132,30 +112,11 @@ class And(Expression):
     def __repr__(self):
         return "And({0})".format(",".join([str(s) for s in self.terms]))
 
-    # consolidates adjacent Ands into one 
-    def append(self, other):
-        new_terms = this.terms.copy()
-        new_terms.append(other)
-        return And(new_terms)
-    
-    # this is the main calculation of the cartesian product
-
-    def cartesian_product(self, index = 0):
-        if index == len(self.terms):
-            return []
-        else:
-            
-            # branches at this level of the tree
-            sub_product = self.terms[index].cartesian_product()
-            
-            # the cartesian product of all the terms to the right of the one at index
-            product_of_rest = self.cartesian_product(index + 1)
-            
-            # we're at the leaves - start accumulating back up the tree
-            if not product_of_rest:
-                return sub_product
+    def cartesian_product(self):
+        acc = []
+        for term in self.terms:
+            if not acc:
+                acc = term.cartesian_product()
             else:
-                # for all the strings produced by the rest of the And,
-                # create one variation per string in this term's cartesian product.
-                # TODO: I'll bet string concat is slow. could concat segments and then reverse and join.
-                return [sub_result + rest_result for sub_result in sub_product for rest_result in product_of_rest]
+                acc = [acc_string + extension for acc_string in acc for extension in term.cartesian_product()]
+        return acc
