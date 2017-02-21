@@ -101,7 +101,7 @@ class Lazy(Grammar):
     def trace_repr(self):
         return "Lazy wrapper"
 
-    def parse(self, cursor, level):
+    def parse(self, cursor, level = 0):
         return self.thunk().parse(cursor, level + 1)
 
     def rename(self, name):

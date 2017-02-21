@@ -139,7 +139,7 @@ class And(Expression):
         return And(new_terms)
     
     # this is the main calculation of the cartesian product
-    # TODO: instead of recursion to the end, loop from right to left
+
     def cartesian_product(self, index = 0):
         if index == len(self.terms):
             return []
@@ -152,10 +152,10 @@ class And(Expression):
             product_of_rest = self.cartesian_product(index + 1)
             
             # we're at the leaves - start accumulating back up the tree
-            if not rest:
+            if not product_of_rest:
                 return sub_product
             else:
                 # for all the strings produced by the rest of the And,
                 # create one variation per string in this term's cartesian product.
                 # TODO: I'll bet string concat is slow. could concat segments and then reverse and join.
-                return [sub_result + rest_result for sub_result in sub_product for result in product_of_rest]
+                return [sub_result + rest_result for sub_result in sub_product for rest_result in product_of_rest]

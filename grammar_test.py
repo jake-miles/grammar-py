@@ -2,23 +2,6 @@ import unittest
 from grammar import *
 from cursor import Cursor
 import re
-
-class GrammarTest(unittest.TestCase):
-
-    def suite(self):
-        return unittest.TestSuite(map(loadTests, [
-            LazyTest,
-            ResultTest,
-            AnyTokenTest,
-            TokenTest,
-            OneOrMoreTest,
-            AllOfTest,
-            OneOfTest,
-            MapTest,
-            KeepTest,
-            ClearTest,
-            GrammarTest
-        ]))
         
 class ResultTest(unittest.TestCase):
 
@@ -286,3 +269,5 @@ class GrammarTest(unittest.TestCase):
             
     # TODO: test with a simple arithmetic grammar.
     # for now, this is tested using the bash catesian product grammar
+    
+

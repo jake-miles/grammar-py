@@ -1,16 +1,6 @@
 import unittest
 from cursor import Cursor
 
-class CursorTest(unittest.TestCase):
-
-     def suite():
-        return unittest.TestSuite(map(loadTests, [
-            CursorTestTraversal,
-            CursorTestFind,
-            CursorTestMapWhile,
-            CursorTestCrawlWhile
-        ]))
-
 class CursorTestTraversal(unittest.TestCase):
     
     def test_start_empty_true(self):
@@ -129,6 +119,4 @@ class CursorTestCrawlWhile(unittest.TestCase):
         self.assertEqual(mappings, [[0,-1], [-2,-3,-4], [-5,-6,-7,-8], [-9]])
         self.assertTrue(end.empty())
 
-    
-if __name__ == '__main__':
-    unittest.main()
+
