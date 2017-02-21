@@ -1,10 +1,10 @@
 import unittest
-from cartesian_product_calc import *
+from cartesian_product_model import *
 
 def cartesian(units):
     return And(units).cartesian_product()
 
-class CartesianProductTestCalc(unittest.TestCase):
+class CartesianProductModelTest(unittest.TestCase):
     
     def test_no_segments(self):
         cp = cartesian([])
@@ -22,6 +22,11 @@ class CartesianProductTestCalc(unittest.TestCase):
         cp = cartesian([Or([Lit("a"),Lit("b"),Lit("c")])])
         self.assertEqual(cp, ["a", "b", "c"])
 
+    def test_lit_or_lit(self):
+        # echo a{b,c,d}e
+        cp = cartesian([Lit("a"), Or([Lit("b"), Lit("c"), Lit("d")]), Lit("e")])
+        self.assertEqual(cp, ["abe", "ace", "ade"])
+        
     def test_nested_multiplier(self):
         # echo z{a,{b,c},d}y
         cp = cartesian([Lit("z"),
@@ -30,6 +35,16 @@ class CartesianProductTestCalc(unittest.TestCase):
                             Lit("d")]),
                         Lit("y")])
         self.assertEqual(cp, ["zay", "zby", "zcy", "zdy"])
+
+    def test_nested_lit_or_lit(self):
+        # echo z{a,b{c,d},e}y
+        cp = cartesian([Lit("z"),
+                        Or([Lit("a"),
+                            And([Lit("b"), Or([Lit("c"), Lit("d")])]),
+                            Lit("e")]),
+                        Lit("y")])
+        self.assertEqual(cp, ["zay", "zbcy", "zbdy", "zey"])
+
         
     def test_multiple_multipliers(self):
         # echo {a,b,c}{d,e,f}{g,h,i}
