@@ -3,7 +3,7 @@ from cursor import Cursor
 from bash_cartesian_product_grammar import top_level_expr
 from cartesian_product_calc import Empty
 
-def parse_bash_cp(string):
+def parse(string):
     """
     The entry point to parse a bash cartesian product string in a syntax tree,
     which will be a subtype of class `Expression`,

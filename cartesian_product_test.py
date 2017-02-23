@@ -1,24 +1,15 @@
 import unittest
 
-from cartesian_product_test_calc import TestCartesianProductCalc
-from cartesian_product_test_parse import TestCartesianProductParse
+from cartesian_product import bash_cartesian_product
 
-def loadTests(case):
-    unittest.TestLoader().loadTestsFromTestCase(case)
+class TestTopLevelScript(unittest.TestCase):
+    """
+    This just tests the integration of the parse/compute steps 
+    tested above, and pretty-printing.
 
-class CartesianProductTest:
-    def suite():
-        return unittest.TestSuite(map(loadTest, [
-            CursorTest,
-            GrammarTest,
-            TestCartesianProductCalc,
-            TestCartesianProductParse,
-            TestBashCP
-        ]))
-
-# just tests the integration of the parse/compute steps tested above, and pretty-printing.
-# if all the tests above pass, it would be very strange if these failed.
-class TestBashCP(unittest.TestCase):
+    If all the model and parser tests above pass, it would be very strange 
+    if these failed.
+    """
 
     def test_example_1(self):
         cp = bash_cartesian_product("a{b,c}d{e,f,g}hi")
@@ -29,8 +20,6 @@ class TestBashCP(unittest.TestCase):
         self.assertEqual(cp, "abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl")
 
 
-def main():
+if __name__ == 'main':
     unittest.main()
 
-if __name__ == 'main':
-    main()

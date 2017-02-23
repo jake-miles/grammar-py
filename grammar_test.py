@@ -200,51 +200,6 @@ class ClearTest(unittest.TestCase):
         self.assertEqual(result, Result("a"))
 
 
-
-# AST classes for a limited arithmetic expression tree
-    
-class Arithmetic(Grammar):
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-    
-class Number(Arithmetic):
-    
-    def __init__(self, value):
-        self.value = value
-
-    def __repr__(self):
-        return "Number(" + str(self.value) + ")"
-        
-    @staticmethod
-    def fromResult(n, keeps):
-        return Number(n)
-            
-class Negate(Arithmetic):
-    
-    def __init__(self, value):
-        self.value = value
-
-    def __repr__(self):
-        return "Negate(" + self.value + ")"
-        
-    @staticmethod            
-    def fromResult(n, keeps):
-        return Negate(n)
-            
-class Add(Arithmetic):
-
-    def __init__(self, terms):
-        self.terms = terms
-
-    def __repr__(self):
-        return "Add(" + str(self.terms) + ")"
-
-    @staticmethod
-    def fromResult(terms, keeps):
-        return Add(keeps['left'].append(keeps['right']))
-        
-    
 class GrammarTest(unittest.TestCase):
 
     def test_empty_no_match(self):
@@ -268,6 +223,6 @@ class GrammarTest(unittest.TestCase):
         self.assertEqual(result, Result("5"))
             
     # TODO: test with a simple arithmetic grammar.
-    # for now, this is tested using the bash catesian product grammar
+    # for now, this is tested using the bash cartesian product grammar
     
 

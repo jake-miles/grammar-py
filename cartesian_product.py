@@ -1,12 +1,17 @@
-from cartesian_product_parse import parse_bash_cp
+from cartesian_product_parse import parse
 
 def bash_cartesian_product(spec):
     """
 
     Returns the "bash cartesian product", a space-delimited string
     of permutations, as described by the specification string `spec`.
+    
+    The string specifies a disjunction with a pair of curly braces
+    containing comma-delimited variations to introduce at that point in
+    the string.
 
-    todo: define bash cartesian product
+    Note that curly braces not containing a comma denote literal curly braces,
+    and a comma not contained within curly braces denotes a literal comma.
 
     >>> bash_cartesian_product("a{b,c}d{e,f,g}hi")
     abdehi abdfhi abdghi acdehi acdfhi acdghi
@@ -14,9 +19,9 @@ def bash_cartesian_product(spec):
     >>> bash_cartesian_product("a{b,c{d,e,f}g,h}ij{k,l}")
     abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl
     """
-    cp_expression = parse_bash_cp(spec)
-    resulting_strings = cp_expression.product()
-    return " ".join(resulting_strings)
+    expression_tree = parse(spec)
+    variations = expression_tree.cartesian_product()
+    return " ".join(variations)
 
 if __name__ == '__main__':
     import sys

@@ -1,24 +1,19 @@
 import abc
 from cursor import Cursor
 
-"""
-These classes define the syntax tree produced by the parser, 
-which is also the data model for calculating the cartesian product - 
-an expression tree composed of a sort of "cartesian product algebra" of
-literal strings, conjunctions and disjunctions (classes Lit, And, and Or).
-
-To calculate the cartesian product (a list of strings), 
-call an Expression's `cartesian_product` method. 
-
-An Expression also provides an `append` method, which allows the
-parser to construct a simpler syntax tree, to make tests and debugging
-easier, and the logic easier to follow.
-"""
-
 class Expression:
     """
     Represents an expression tree that can produce a 
     cartesian product of strings.
+
+    The subclasses define the syntax tree produced by the parser, 
+    which is also the data model for calculating the cartesian product - 
+    an expression tree composed of a sort of "cartesian product algebra": 
+    an empty product (Empty), a literal string (Lit), a conjunction of 
+    subexpressions (And), and a disjunction of sub-expressions (Or).
+    
+    To calculate the cartesian product (a list of strings), 
+    call an Expression's `cartesian_product` method. 
     """
 
     @abc.abstractmethod
@@ -41,7 +36,7 @@ class Empty(Expression):
         return "Empty"
         
     def cartesian_product(self):
-        return None
+        return []
 
 
 class Lit(Expression):
@@ -58,22 +53,7 @@ class Lit(Expression):
 
 
 class Or(Expression):
-    """
-    Represents a disjunction of expressions, whose
-    cartesian product is the flattening of their individual
-    cartesian products.  For example, the string 
-
-    {c,{d,e},f} 
-
-    becomes 
-
-    Or([Lit("c"), Or([Lit("d"), Lit("e")]), Lit("f")])
-
-    which produces the cartesian product
-
-    ["c", "d", "e", "f"]
-
-    """
+    "Represents a disjunction of expressions."
     
     def __init__(self, branches):
         self.branches = branches
@@ -82,6 +62,7 @@ class Or(Expression):
         return "Or({0})".format(",".join([str(s) for s in self.branches]))
 
     def cartesian_product(self):
+        "Build a flattened list of all the branches' products."
         acc = []
         for branch in self.branches:
             acc.extend(branch.cartesian_product())
@@ -92,18 +73,6 @@ class And(Expression):
     """
     Represents the conjunction of expressions, which multiply in
     sequence to produce the cartesian product.
-
-    For example, 
-
-    the string "abc{1,2}de" 
-
-    becomes
-
-    And([Lit("abc"), Or(["1","2"]), List("de")])
-
-    which produces the cartesian product
-
-    ["abc1de", "abc2de"]
     """
     
     def __init__(self, terms):
@@ -113,6 +82,28 @@ class And(Expression):
         return "And({0})".format(",".join([str(s) for s in self.terms]))
 
     def cartesian_product(self):
+        """
+        Builds up `acc` in a "breadth-first" fashion - produces one 
+        sub-expression's product, appending each string in the sub-product
+        to each string already in `acc`, and then doing the same for the 
+        next sub-expression.
+        
+        For example, the string "abc{d,e}f{g,h}"
+        produces the following iterations of the list `acc`:
+
+        abc
+        
+        abcd
+        abce
+
+        abcdf
+        abcef
+
+        abcdfg
+        abcdfh
+        abcefg
+        abcefh
+        """        
         acc = []
         for term in self.terms:
             if not acc:
