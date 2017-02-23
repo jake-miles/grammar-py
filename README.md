@@ -40,9 +40,9 @@ was expected.  I did my best to reproduce it exactly.
 ## The design and implementation: parse / compute / pretty-print
 
 The top-level script, `cartesian_product.py` glues together three steps:
-1) parsing the input string into a model,
-2) traversing the model to calculate the cartesian product strings,
-3) joining the strings into a single string and outputting it (just a call to `join()`).
+- parsing the input string into a model,
+- traversing the model to calculate the cartesian product strings,
+- joining the strings into a single string and outputting it (just a call to `join()`).
 
 The functionality is split up among the following modules.  Each includes a corresponding unit test module.
 
@@ -56,7 +56,7 @@ The four subclasses used to calculate the cartesian product are:
 
 - Empty: represents an empty cartesian product,
 - Lit: represents a literal string like "a",
-- And: represents a sequence of Expressions, such as "abc{d,e}" - a literal followed by a disjunction,
+- And: represents a conjunction of Expressions, such as "abc{d,e}" - a literal followed by a disjunction,
 - Or: represents a disjunction of Expressions that multiply the results at that point in the input string.
 
 For example, the string "abc{d,e}" would turn into the Expression:
@@ -95,21 +95,22 @@ using the grammar.
 
 The top-level script that glues together the parse, compute, pretty-print steps.
 
-## A note on the grammar library
+## A note on the grammar library and an alternate implementation
 
 The grammar library grew into a bit more code than I first anticipated,
 and possibly more than you anticipated as well :)  Its value is partly
 in solving this particular problem and partly just as a cool thing to have written
 for my github page.  It was also a lot of fun.  
+
 However, I'm aware that it was not strictly necessary 
 to solve the bash cartesian product problem.  I had a "hand-cranked" solution working
 when I decided to work out this other more generic approach.  If you'd like to see
-that first approach, which is working but which I abandoned before refactoring
-it into something more readable, it's [https://github.com/jake-miles/bash-cartesian-python/blob/3efe535a15146df514daaaf1c7a6bdc41ee2f07a/cartesian_product_parse.py](here).
+that first approach, which is working but which I abandoned, it's [https://github.com/jake-miles/bash-cartesian-python/blob/3efe535a15146df514daaaf1c7a6bdc41ee2f07a/cartesian_product_parse.py](here).  
+
 It works for most cases, but fails on some cases involving literal 
 curly braces and commas.  I switched to the generic approach when debugging those cases
-became complicated, with the guess that solving a more general problem
-would prove easier than solving a specific problem. 
+became complicated, on the thinking that solving a more general problem
+would prove easier than solving a specific problem.
 
 
 
