@@ -7,7 +7,10 @@ from itertools import repeat
 # Uses rescursive descent and backtracking (depth-first search) to match a Grammar tree
 # against an input string.
 #
-# Inspired in part by the API of http://www.lihaoyi.com/fastparse/
+# Inspired by
+# a) prolog,
+# b) the rho-contracts.js library, https://github.com/bodylabs/rho-contracts-fork
+# c) http://www.lihaoyi.com/fastparse/ (the "parse" part, not the "fast" part)
 #
 
 def trace(level, *args):
