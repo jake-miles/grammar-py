@@ -1,4 +1,4 @@
-from cartesian_product_calc import And, Or, Lit, Empty
+from cartesian_product_model import And, Or, Lit, Empty
 from grammar import *
 
 # a grammar for the input string of a bash cartesian product

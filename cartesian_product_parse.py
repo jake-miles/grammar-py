@@ -1,7 +1,7 @@
 import re
 from cursor import Cursor
 from bash_cartesian_product_grammar import top_level_expr
-from cartesian_product_calc import Empty
+from cartesian_product_model import Empty
 
 def parse(string):
     """
