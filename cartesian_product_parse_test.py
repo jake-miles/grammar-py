@@ -1,5 +1,5 @@
 import unittest
-from cartesian_product_calc import And, Or, Lit, Empty
+from cartesian_product_model import And, Or, Lit, Empty
 from cartesian_product_parse import *
 from grammar import Grammar
 
