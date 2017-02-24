@@ -98,7 +98,39 @@ a Cursor pointing to ["-", "1"]. If there is no more string after matching
 a Grammar, `end` would be an empty Cursor.  If it did not match the string,
 `result` would be falsy and `end` would be a Cursor matching the original.
 
-The subtypes you compose to create the structure of the grammar are:
+## Creating recursive grammars with the `Lazy` grammar
+
+Most useful grammars include some recursive element.  For example, an addition
+isn't just applicable to two numbers but to two full arithmetic expressions:
+But if we write that grammar, some grammar element will have to refer to some
+other grammar element that isn't defined yet - it's defined later down the page.
+
+```
+expr = OneOf([number, addition, subtraction])
+
+number = AnyToken().map(int)
+addition = AllOf([expr, Token("+"), expr]).map(toAddition)
+subtraction = AllOf([expr, Token("-"), expr]).map(Subtraction)
+```
+
+`expr` refers to `number`, `addition` and `subtraction`, which don't exist yet.  To allow
+it to refer to them, we wrap the references in `Lazy`s.
+
+```
+expr = OneOf([Lazy(lambda: number), Lazy(lambda: addition), Lazy(lambda: subtraction)])
+
+addition = AllOf([expr, Token("+"), expr])
+subtraction = AllOf([expr, Token("-"), expr])
+```
+
+`Lazy` is a special `Grammar` that takes a lambda that produces the real `Grammar`.
+It delegates the parsing to and returns the results of that `Grammar`.  So the 
+wrapped Grammar is only referred to during parsing, not beforehand, and there's no
+problem when python parses the file.
+
+## The Grammar types
+
+These are the components you combine to compose the structure of your grammar:
 
 - `Token`: matches a specific literal string
 
