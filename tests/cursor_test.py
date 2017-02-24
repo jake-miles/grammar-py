@@ -1,5 +1,5 @@
 import unittest
-from ..cursor import Cursor
+from cursor import Cursor
 
 class CursorTestTraversal(unittest.TestCase):
     

@@ -1,6 +1,6 @@
 # a grammar for the input string of a bash cartesian product
 
-from ..grammar import *
+from grammar import *
 
 ### some model classes representing parts of a bash cartesian product:
 # `And` - represents a sequence of terms

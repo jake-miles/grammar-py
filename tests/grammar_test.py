@@ -1,6 +1,6 @@
 import unittest
-from ..grammar import *
-from ..cursor import Cursor
+from grammar import *
+from cursor import Cursor
 import re
         
 class ResultTest(unittest.TestCase):

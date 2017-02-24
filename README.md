@@ -96,7 +96,7 @@ python -m unittest discover -p "*_test.py"
 
 ### cursor.py
 
-`ursor.py` provides a Cursor class, representing a cursor along a generic list of items. 
+`cursor.py` provides a Cursor class, representing a cursor along a generic list of items. 
 It makes it easy to traverse the list in ways useful to parsing, and specifically do so
 without modifying or copying the original list, enabling the backtrack parser 
 to backtrack.  Provides the same functionality as a linked list, but backed by 

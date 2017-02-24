@@ -1,6 +1,6 @@
 import re
-from ..cursor import Cursor
-from ..bash_cartesian_product_grammar import top_level_expr, Empty
+from cursor import Cursor
+from bash_cartesian_product_grammar import top_level_expr, Empty
 
 def parse(string):
     """
