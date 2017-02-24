@@ -33,8 +33,15 @@ class Addition:
     self.left = left
     self.right = right
     
+class Number:
+  def __init__(self, value):
+    self.value = value
+    
 def toAddition(value, keeps):
     Addition(keeps['left'], keeps['right'])
+    
+def toNumber(value, keeps):
+    Number(value)
     
 addition = AllOf([AnyToken().map(toNumber).keep('left'), 
                   Token("+"), 
