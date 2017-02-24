@@ -8,9 +8,10 @@ from smaller grammar components.  It will then parse an input string matching
 the grammar, with facilities to map the matched portions into your own model objects.
 
 Inspired in part by:
+
 1. Prolog
-2. The powerful JavaScript contract library (rho-contracts.js)[https://github.com/bodylabs/rho-contracts-fork]
-3. Scala's parser combinator library and (fast-parse)[https://github.com/lihaoyi/fastparse]
+2. The powerful JavaScript contract library [rho-contracts.js](https://github.com/bodylabs/rho-contracts-fork)
+3. Scala's parser combinator library and [fast-parse](https://github.com/lihaoyi/fastparse)
 
 However, this library doesn't come close to those giants in any respect.
 Though it may match interpreted prolog in performance :)
