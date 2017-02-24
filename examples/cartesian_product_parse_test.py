@@ -1,7 +1,7 @@
 import unittest
-from cartesian_product_model import And, Or, Lit, Empty
+from bash_cartesian_product_grammar import And, Or, Lit, Empty
 from cartesian_product_parse import *
-from grammar import Grammar
+from ..grammar import Grammar
 
 class CreateCursor(unittest.TestCase):
     "Tests tokenizing the bash cartesian product input string"
