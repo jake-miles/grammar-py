@@ -20,66 +20,6 @@ class Grammar:
     """
     Represents a grammar tree that will parse a string into some top-level value
     and a dictionary of items captured along the way.
-
-    You compose a grammar by composing subtypes of `Grammar` into a tree,
-    and then call `parse` on it with an input Cursor (see `cursor.py`).
-
-    For example:
-
-    class Addition:
-      def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
-    addition = AllOf([AnyToken().map(toNumber), 
-                      Token("+"), 
-                      AnyToken().map(toNumber)]).map(Addition)
-
-    (result, end) = addition.parse(["2", "+", "3", "-", "1")
-
-    result == Addition("2", "3")
-
-    `end` is the cursor on the input after parsing the `addition`, so
-    a Cursor pointing to ["-", "1"]. If there is no more string after matching
-    a Grammar, `end` would be an empty Cursor.
-
-    The subtypes you compose to create the structure of the grammar are:
-
-    - Token: matches a specific literal string
-
-    - AnyToken: matches any literal string
-
-    - AllOf: takes a list of Grammars, and only matches if they can be matched
-      against the input in sequence.
-
-    - OneOrMore: takes a Grammar and matches one or more occurrences of that Grammar
-      occurring in sequence in the input.
-
-    - OneOf: takes a list of Grammars and will try them in order until one
-      matches the input.
-
-    - Unless: takes two Grammars.  The first is a Grammar whose match is negated, i.e.
-      if that Grammar matches, the Unless fails to match the input string.  The
-      second Grammar is applied only if the first fails, and its value is returned
-      as the result of the Unless.
-
-    When a Grammar matches, it returns a `Result`, which contains a `value`
-    and a dictionary called `keeps`.  You can modify this `Result` as it
-    returns up the stack using the following methods on `Grammar`:
-
-    `map`: takes a (lambda value, keeps) that is called with the `Result's` `value`
-    and `keeps` dictionary, and should return whatever the result should map into
-    (an abstract syntax tree node or other model object).
-
-    `keep`: takes a string, and will add the Result's `value` to the `keeps`
-    dictionary under that name.  This dictionary can then be used by the `map`
-    lambda of a grammar higher up the tree to create its model object.
-
-    `rename`: takes a string, and if you are debugging your grammar 
-    (set `Grammar.trace = True`), it will use that name instead of the 
-    Grammar's entire tree structure when logging it.    
-
-    For a sample grammar, see `bash_cartesian_product_grammar.py`.
     """
 
     trace = False

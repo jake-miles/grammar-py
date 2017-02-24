@@ -1,24 +1,91 @@
-# Bash cartesian product in python
+# grammar.py: a small parser combinator library in python
 
-Python implementation of a bash cartesian product, intended as a drop-in
-replacement for bash's cartesian product functionality (done as a coding exercise,
-not intended to actually replace bash's implementation, which works quite well already).
+A barebones parser combinator library in python, born of a coding exercise.
+Use it if you find it helpful, but it's just a toy for me to tinker with.  
 
-## Command-line usage:
+grammar.py provides a simple grammar definition DSL in python, letting you compose a grammar
+from smaller grammar components.  It will then parse an input string matching
+the grammar, with facilities to map the matched portions into your own model objects.
+
+Inspired in part by:
+1) Prolog
+2) The powerful JavaScript contract library (rho-contracts.js library)[https://github.com/bodylabs/rho-contracts-fork]
+3) Scala's parser combinator library and (fast-parse)[https://github.com/lihaoyi/fastparse]
+
+However, this library is just a toy, and doesn't come close to those giants in terms
+of functionality or performance.  Well, it may match prolog in performance :)
+
+No support for error conditions at the moment; like prolog, if it doesn't match it just
+sticks its tongue out at you.
+
+## How to use it
+    
+You compose a grammar by composing subtypes of `Grammar` into a tree,
+and then call `parse` on it with an input Cursor (see `cursor.py`).
+
+For example:
+
 ```
-> python cartesian_product.py 'input string'
-```
+class Addition:
+  "Represents an addition of two numbers"
+  def __init__(self, left, right):
+    self.left = left
+    self.right = right
+    
+def toAddition(value, keeps):
+    Addition(keeps['left'], keeps['right'])
+    
+addition = AllOf([AnyToken().map(toNumber).keep('left'), 
+                  Token("+"), 
+                  AnyToken().map(toNumber).keep('right')]).map(toAddition)
 
-Be sure to enclose the input string in single quotes so bash doesn't interpret it :)
+(result, end) = addition.parse(Cursor["2", "+", "3", "-", "1"])
 
-## Examples
+# result == Addition("2", "3")
 ```
-$ python cartesian_product.py 'a{b,c}d{e,f,g}hi'
-abdehi abdfhi abdghi acdehi acdfhi acdghi
+   
+`end` at that point is the cursor on the input just after parsing the `addition`, so
+a Cursor pointing to ["-", "1"]. If there is no more string after matching
+a Grammar, `end` would be an empty Cursor.  If it did not match the string,
+`result` would be falsy and `end` would be a Cursor matching the original.
 
-$ python cartesian_product.py 'a{b,c{d,e,f}g,h}ij{k,l}'
-abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl
-```
+The subtypes you compose to create the structure of the grammar are:
+
+- Token: matches a specific literal string
+
+- AnyToken: matches any literal string
+
+- AllOf: takes a list of Grammars, and only matches if they can be matched
+      against the input in sequence.
+
+- OneOrMore: takes a Grammar and matches one or more occurrences of that Grammar
+      occurring in sequence in the input.
+
+- OneOf: takes a list of Grammars and will try them in order until one
+      matches the input.
+
+- Unless: takes two Grammars.  The first is a Grammar whose match is negated, i.e.
+if that Grammar matches, the Unless fails to match the input string.  The
+second Grammar is applied only if the first fails, and its value is returned
+as the result of the Unless.
+
+When a Grammar matches, it returns a `Result`, which contains a `value`
+and a dictionary called `keeps`.  You can modify this `Result` as it
+returns up the stack using the following methods on `Grammar`:
+
+`map`: takes a (lambda value, keeps) that is called with the `Result's` `value`
+and `keeps` dictionary, and should return whatever the result should map into
+(an abstract syntax tree node or other model object).
+
+`keep`: takes a string, and will add the Result's `value` to the `keeps`
+dictionary under that name.  This dictionary can then be used by the `map`
+lambda of a grammar higher up the tree to create its model object.
+
+`rename`: takes a string, and if you are debugging your grammar 
+(set `Grammar.trace = True`), it will use that name instead of the 
+Grammar's entire tree structure when logging it.    
+
+For a sample grammar, see `bash_cartesian_product_grammar.py`.
 
 ## To run the tests:
 
@@ -26,91 +93,23 @@ abijk abijl acdgijk acdgijl acegijk acegijl acfgijk acfgijl ahijk ahijl
 python -m unittest discover -p "*_test.py" 
 ```
 
-### TODO: One failing test
-
-There is currently one failing test in `cartesian_product_parse_test.py`, which I'm
-still investigating.  The pydoc in the test method explains the details of the 
-failing case.  It was not quite clear to me from the original requirements 
-whether handling that case was part of the scope; I did my best to produce 
-a drop-in replacement for bash's behavior, which does handle that case, 
-but differently than my code.  The two example inputs don't include anything like 
-that case, so it was unclear how close a facsimile of bash's implementation 
-was expected.  I did my best to reproduce it exactly.
-
-## The design and implementation: parse / compute / pretty-print
-
-The top-level script, `cartesian_product.py` glues together three steps:
-- parsing the input string into a model,
-- traversing the model to calculate the cartesian product strings,
-- joining the strings into a single string and outputting it (just a call to `join()`).
-
-The functionality is split up among the following modules.  Each includes a corresponding unit test module.
-
-### cartesian_product_model.py
-
-The core calculation of the resulting strings is handled by a set of model classes -
-subclasses of an abstract class `Expression`, representing the tree structure of the 
-input and providing a method `cartesian_product()` that does the calculation.
-
-The four subclasses used to calculate the cartesian product are:
-
-- Empty: represents an empty cartesian product,
-- Lit: represents a literal string like "a",
-- And: represents a conjunction of Expressions, such as "abc{d,e}" - a literal followed by a disjunction,
-- Or: represents a disjunction of Expressions that multiply the results at that point in the input string.
-
-For example, the string "abc{d,e}" would turn into the Expression:
-```
-And([Lit("abc"), 
-     Or([Lit("d"), Lit("e")])])
-```
-
 ### cursor.py
 
-A Cursor class, representing a cursor along a generic list of items, making
-it easy to traverse the list in ways useful to parsing, and specifically do so
-without modifying or copying the original list, to enable the backtrack parser 
+`ursor.py` provides a Cursor class, representing a cursor along a generic list of items. 
+It makes it easy to traverse the list in ways useful to parsing, and specifically do so
+without modifying or copying the original list, enabling the backtrack parser 
 to backtrack.  Provides the same functionality as a linked list, but backed by 
 a python list and therefore providing constant-time access to any index as well.
 
-### grammar.py
-
-A small parser combinator library, i.e. lets you compose a simple grammar
-declaratively out of smaller grammar elements, that will parse an 
-input string into your target model objects.  It's very barebones
-and doesn't currently support any functionality not needed to parse 
-the bash cartesian product input.
-
 ### bash_cartesian_product_grammar.py
 
-A specific grammar for the bash cartesian product input string, 
+A sample grammar for the bash cartesian product input string, 
 composed using `grammar.py`.
 
-### cartesian_product_parse.py
+TODO: there's currently a bug in the grammar; it interprets a somewhat edge case
+differently than the real bash cartesian product parser.
 
-Tokenizes a bash cartesian product input string and parses it into an `Expression` model
-using the grammar.
 
-### cartesian_product.py
-
-The top-level script that glues together the parse, compute, pretty-print steps.
-
-## A note on the grammar library and an alternate implementation
-
-The grammar library grew into a bit more code than I first anticipated,
-and possibly more than you anticipated as well :)  Its value is partly
-in solving this particular problem and partly just as a cool thing to have written
-for my github page.  It was also a lot of fun.  
-
-However, I'm aware that it was not strictly necessary 
-to solve the bash cartesian product problem.  I had a "hand-cranked" solution working
-when I decided to work out this other more generic approach.  If you'd like to see
-that first approach, which is working but which I abandoned, it's [https://github.com/jake-miles/bash-cartesian-python/blob/3efe535a15146df514daaaf1c7a6bdc41ee2f07a/cartesian_product_parse.py](here).  
-
-It works for most cases, but fails on some cases involving literal 
-curly braces and commas.  I switched to the generic approach when debugging those cases
-became complicated, on the thinking that solving a more general problem
-would prove easier than solving a specific problem.
 
 
 

@@ -1,35 +1,33 @@
-from cartesian_product_model import And, Or, Lit, Empty
-from grammar import *
-
 # a grammar for the input string of a bash cartesian product
 
-"""
-This uses the classes defined in `grammar.py` to describe
-the grammar of the bash cartesian product intput string.
-Doing so creates a tree of `Grammar` instances that then parse
-an input string and produce a tree of the model classes
-defined in `cartesian_product_model.py`: `Empty`, `Lit` `Or`, and `And`.
+from grammar import *
 
-An input string, at any point during parsing, can represent:
+### some model classes representing parts of a bash cartesian product:
+# `And` - represents a sequence of terms
+# `Or` - represents a disjuncion of terms
+# `Lit` - represents a literal string
+# `Empty` - represents an empty syntax tree
 
-1) a literal term, like "abc"
+class And:
+    def __init__(self, terms):
+        self.terms = terms
 
-2) a disjunction of terms, i.e. branches to multiply by, like "{d,e}", becoming an `Or`
+class Or:
+    def __init__(self, branches):
+        self.branches = branches
 
-3) a conjunction of terms, i.e. a sequence of terms like "abc{d,e}", 
-becoming an `And` of "abc" and "{d,e}".
+class Lit:
+    def __init__(self, value):
+        self.value = value
 
-4) an empty disjunction branch, for example in "{,d}", where the first branch is empty.
-
-The calls to `rename` just rename a grammar for easier debugging when tracing the parse.
-
-"""
+class Empty:
+    pass
 
 # these "to" functions will be called with the current result value
 # at a point in the parse tree, to map it into one of our model objects.
 # each is called with the result value at the time, and a dictionary
 # called `keeps`, which is a dictionary of values captured by the
-# calls to `keep()` further down inthe grammar tree.
+# calls to `keep()` further down in the grammar tree.
 
 def toEmpty(value, keeps):
     return Empty()
@@ -67,7 +65,7 @@ def branch_ending_in(token):
     def keep_first(results, keeps):
         return results[0]
 
-    # the contents of a branch is either one term of a conjunction of terms.
+    # the contents of a branch is either one term or a conjunction of terms.
     # the `Unless` makes sure we don't capture the , or } as a literal.
     branch_contents = OneOrMore(OneOf([
         _or,
